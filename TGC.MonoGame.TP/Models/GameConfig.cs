@@ -169,24 +169,36 @@ public static class GameConfig
     // CAMARA
     public static class Camera
     {
-        public const float DefaultDistance = 10f;
-        public const float MinHeightOffset = 1.5f;
-        public const float MaxHeightOffset = 8.0f;
-        public const float HeightOffset = 5.0f;
-        public const float MinDistance = 4f;
-        public const float MaxDistance = 25f;
-        public const float ZoomSensitivity = 1.5f;
-        public const float Smoothness = 10f;
-        public const float LookAtHeight = 2.5f;
-        public const float FocusDistance = 3.0f;
-        public const float ShoulderOffset = 2.2f;
+        // --- DISTANCIAS Y POSICIÓN ---
+        public const float DefaultDistance = 10f;           // metros, distancia inicial de la cámara al tanque
+        public const float MinDistance = 1.5f;              // metros, zoom máximo (vista comandante)
+        public const float MaxDistance = 35f;               // metros, zoom mínimo (vista más lejana)
 
-        public const float NearPlaneDist = 0.5f;
-        public const float FarPlaneDist = 250;
+        // --- ALTURA DE LA CÁMARA ---
+        public const float DefaultHeightOffset = 4.5f;      // metros, altura sobre el tanque en vista normal
+        public const float HatchHeightOffset = 2.4f;        // metros, altura en modo escotilla (comandante)
 
-        public const float ShakeIntensity = 1.025f;     // unidades de mundo
-        public const float ShakeDuration = 0.100f;      // segundos
-        public const float TerrainClampOffset = 1.0f;   // metros, altura minima sobre el terreno
+        // --- PUNTO DE MIRA (LOOK AT) ---
+        public const float DefaultLookAtHeight = 3.0f;      // metros, altura a la que mira en vista normal
+        public const float HatchLookAtForward = 3.5f;       // metros, desplazamiento hacia adelante en modo escotilla
+
+        // --- TRANSICIÓN A MODO ESCOTILLA ---
+        public const float HatchTransitionDistance = 4.0f;  // metros, umbral donde empieza la transición a escotilla
+
+        // --- ZOOM Y SUAVIZADO ---
+        public const float ZoomSensitivity = 1.5f;          // metros/scroll, sensibilidad de la rueda del mouse
+        public const float Smoothness = 10f;                // 1/segundos, factor de suavizado del movimiento (Lerp)
+
+        // --- PROYECCIÓN ---
+        public const float NearPlaneDist = 0.1f;            // metros, plano de corte cercano (evita clipping del cañón)
+        public const float FarPlaneDist = 250f;             // metros, plano de corte lejano
+
+        // --- EFECTOS ---
+        public const float ShakeIntensity = 1.025f;         // metros, amplitud del camera-shake al recibir daño
+        public const float ShakeDuration = 0.100f;          // segundos, duración del camera-shake
+
+        // --- LÍMITES ---
+        public const float TerrainClampOffset = 1.0f;       // metros, altura mínima de la cámara sobre el terreno
     }
 
     // ASSETS (CASAS, DECORACIONES)
