@@ -102,5 +102,7 @@ public class TankPlayer : TankBase
         else TGCGame.Instance.IsMouseVisible = true;
 
         ApplyPhysics(simulation, dt, forwardInput, turnInput);
+
+        RecalculateMatrices();
     }
 }

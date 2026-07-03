@@ -151,6 +151,7 @@ public abstract class TankEnemy : TankBase
         //Aplicar fisica
         ApplyPhysics(simulation, dt, forwardInput, turnInput);
         RecalculateWorldBoundingBox();
+        RecalculateMatrices();
     }
 
     //Metodo auxiliar
