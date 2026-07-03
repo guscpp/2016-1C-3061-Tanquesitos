@@ -85,7 +85,8 @@ public class CannonballManager
 
             if (cb.IsDead)
             {
-                _simulation.Bodies.Remove(cb.BodyHandle);
+                if (_simulation.Bodies.BodyExists(cb.BodyHandle)) _simulation.Bodies.Remove(cb.BodyHandle);
+
                 _cannonballsByHandle.Remove(cb.BodyHandle);
                 _cannonballs.RemoveAt(i);
             }
