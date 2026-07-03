@@ -169,36 +169,38 @@ public static class GameConfig
     // CAMARA
     public static class Camera
     {
-        // --- DISTANCIAS Y POSICIÓN ---
-        public const float DefaultDistance = 10f;           // metros, distancia inicial de la cámara al tanque
-        public const float MinDistance = 1.5f;              // metros, zoom máximo (vista comandante)
-        public const float MaxDistance = 35f;               // metros, zoom mínimo (vista más lejana)
+        // --- DISTANCIAS Y POSICION ---
+        public const float DefaultDistance = 10f;           // metros, distancia inicial de la camara al tanque
+        public const float MinDistance = 1.5f;              // metros, zoom maximo (vista comandante)
+        public const float MaxDistance = 35f;               // metros, zoom mínimo (vista mas lejana)
 
-        // --- ALTURA DE LA CÁMARA ---
+        // --- ALTURA DE LA CAMARA ---
         public const float DefaultHeightOffset = 4.5f;      // metros, altura sobre el tanque en vista normal
         public const float HatchHeightOffset = 2.4f;        // metros, altura en modo escotilla (comandante)
+
+        public const float HatchPositionForwardOffset = 0.8f; // metros, poner la camara adelantada hacia el canon
 
         // --- PUNTO DE MIRA (LOOK AT) ---
         public const float DefaultLookAtHeight = 3.0f;      // metros, altura a la que mira en vista normal
         public const float HatchLookAtForward = 3.5f;       // metros, desplazamiento hacia adelante en modo escotilla
 
-        // --- TRANSICIÓN A MODO ESCOTILLA ---
-        public const float HatchTransitionDistance = 4.0f;  // metros, umbral donde empieza la transición a escotilla
+        // --- TRANSICION A MODO ESCOTILLA ---
+        public const float HatchTransitionDistance = 4.0f;  // metros, umbral donde empieza la transicion a escotilla
 
         // --- ZOOM Y SUAVIZADO ---
         public const float ZoomSensitivity = 1.5f;          // metros/scroll, sensibilidad de la rueda del mouse
         public const float Smoothness = 10f;                // 1/segundos, factor de suavizado del movimiento (Lerp)
 
-        // --- PROYECCIÓN ---
-        public const float NearPlaneDist = 0.1f;            // metros, plano de corte cercano (evita clipping del cañón)
+        // --- PROYECCION ---
+        public const float NearPlaneDist = 0.1f;            // metros, plano de corte cercano (evita clipping del canon)
         public const float FarPlaneDist = 250f;             // metros, plano de corte lejano
 
         // --- EFECTOS ---
         public const float ShakeIntensity = 1.025f;         // metros, amplitud del camera-shake al recibir daño
-        public const float ShakeDuration = 0.100f;          // segundos, duración del camera-shake
+        public const float ShakeDuration = 0.100f;          // segundos, duracion del camera-shake
 
-        // --- LÍMITES ---
-        public const float TerrainClampOffset = 1.0f;       // metros, altura mínima de la cámara sobre el terreno
+        // --- LIMITES ---
+        public const float TerrainClampOffset = 1.0f;       // metros, altura minima de la cámara sobre el terreno
     }
 
     // ASSETS (CASAS, DECORACIONES)

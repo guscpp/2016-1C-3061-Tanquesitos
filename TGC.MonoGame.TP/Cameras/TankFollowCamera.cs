@@ -109,8 +109,13 @@ public class TankFollowCamera
         // 6. Desplazamiento hacia adelante
         float currentLookAtForward = MathHelper.Lerp(0f, GameConfig.Camera.HatchLookAtForward, hatchFactor);
 
+        float currentCameraForwardOffset = MathHelper.Lerp(0f, GameConfig.Camera.HatchPositionForwardOffset, hatchFactor);
+
         // 7. Calcular Posición y Punto de Mira
-        _targetPosition = tankPosition + tankBackward * Distance + Vector3.Up * currentHeight;
+        _targetPosition = tankPosition 
+            + tankBackward * Distance 
+            + tankForward * currentCameraForwardOffset
+            + Vector3.Up * currentHeight;
         _lookAt = tankPosition + tankForward * currentLookAtForward + Vector3.Up * currentLookAtHeight;
 
         // 8. Suavizar
