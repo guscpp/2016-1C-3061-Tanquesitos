@@ -72,6 +72,9 @@ public abstract class TankBase
     protected GraphicsDevice _graphicsDevice;
     private float _normalOffsetScale;
 
+    private static readonly Vector4[] _impactsDataCache = new Vector4[MaxImpacts];
+    private static Vector3 _tempVector3 = Vector3.Zero;
+
 
     public void ClearImpacts()
     {
@@ -174,6 +177,7 @@ public abstract class TankBase
         _effect.CurrentTechnique = _effect.Techniques["DrawShadowedHibrido"];
 
         var smm = TGCGame.Instance.ShadowMapManager;
+
         _effect.Parameters["View"]?.SetValue(view);
         _effect.Parameters["Projection"]?.SetValue(projection);
         _effect.Parameters["ModelTexture"]?.SetValue(_texture);
@@ -233,23 +237,21 @@ public abstract class TankBase
                 sourceImpactArray = ImpactChassisLocal;
             }
 
-            // Empaquetar los 6 impactos a Vector4 para enviarlos al shader
-            Vector4[] impactsData = new Vector4[MaxImpacts];
             for (int i = 0; i < MaxImpacts; i++)
             {
                 if (ImpactActive[i])
                 {
                     // Transformar el punto local a mundo usando la matriz de la pieza actual
                     Vector3 worldPos = Vector3.Transform(sourceImpactArray[i], finalWorld);
-                    impactsData[i] = new Vector4(worldPos, ImpactDepthArray[i]); // W = Profundidad
+                    _impactsDataCache[i] = new Vector4(worldPos, ImpactDepthArray[i]); // W = Profundidad
                 }
                 else
                 {
-                    impactsData[i] = Vector4.Zero; // W=0 indica impacto inactivo
+                    _impactsDataCache[i] = Vector4.Zero; // W=0 indica impacto inactivo
                 }
             }
 
-            _effect.Parameters["Impacts"].SetValue(impactsData);
+            _effect.Parameters["Impacts"].SetValue(_impactsDataCache);
 
             // Aplicar colores segun scout/medium/heavy
             var diffuseParam = _effect.Parameters["DiffuseColor"];
@@ -304,22 +306,19 @@ public abstract class TankBase
                 sourceImpactArray = ImpactChassisLocal;
             }
 
-            // Mismo empaquetado de impactos que en Draw(), para que la deformación
-            // del shadow map coincida con la del render visual
-            Vector4[] impactsData = new Vector4[MaxImpacts];
             for (int i = 0; i < MaxImpacts; i++)
             {
                 if (ImpactActive[i])
                 {
                     Vector3 worldPos = Vector3.Transform(sourceImpactArray[i], world);
-                    impactsData[i] = new Vector4(worldPos, ImpactDepthArray[i]);
+                    _impactsDataCache[i] = new Vector4(worldPos, ImpactDepthArray[i]);
                 }
                 else
                 {
-                    impactsData[i] = Vector4.Zero;
+                    _impactsDataCache[i] = Vector4.Zero;
                 }
             }
-            _effect.Parameters["Impacts"]?.SetValue(impactsData);
+            _effect.Parameters["Impacts"]?.SetValue(_impactsDataCache);
 
             _effect.Parameters["World"]?.SetValue(world);
 

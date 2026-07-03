@@ -15,6 +15,9 @@ namespace TGC.MonoGame.TP.Managers
         private Song _currentSong;
         private AudioListener _listener;
 
+        private Dictionary<string, Queue<SoundEffectInstance>> _soundPools = new Dictionary<string, Queue<SoundEffectInstance>>();
+        private const int MAX_INSTANCES_PER_SOUND = 8;
+
         public SoundManager()
         {
             _soundEffects = new Dictionary<string, SoundEffect>();
@@ -80,46 +83,103 @@ namespace TGC.MonoGame.TP.Managers
         public void PlaySound3D(string soundName, Vector3 emitterPosition, Vector3 listenerPosition, Vector3 listenerForward, float pitch = 0f)
         {
             if (!_soundEffects.TryGetValue(soundName, out SoundEffect soundEffect))
-            {
                 return;
+
+            // Obtener o crear el pool
+            if (!_soundPools.TryGetValue(soundName, out var pool))
+            {
+                pool = new Queue<SoundEffectInstance>();
+                _soundPools[soundName] = pool;
             }
 
-            // Crear una instancia del sonido para poder aplicar efectos 3D
-            SoundEffectInstance instance = soundEffect.CreateInstance();
+            SoundEffectInstance instance = null;
 
-            // Aplicar volumen
+            while (pool.Count > 0)
+            {
+                var candidate = pool.Dequeue();
+                if (candidate.State == SoundState.Stopped)
+                {
+                    instance = candidate;
+                    break;
+                }
+                candidate.Dispose();
+            }
+
+            if (instance == null)
+            {
+                instance = soundEffect.CreateInstance();
+            }
+
             instance.Volume = GetVolumeForSfx(soundName);
+            instance.Pitch = MathHelper.Clamp(pitch, -1f, 1f);
 
-            instance.Pitch = MathHelper.Clamp(pitch, -1f, 1f); //contenido dentro de +- 1 octava
-
-            // Configurar el emisor (la fuente del sonido, ej: el tanque o la bala)
             AudioEmitter emitter = new AudioEmitter
             {
-                // Convertimos a System.Numerics.Vector3 usando la extension del proyecto
                 Position = emitterPosition.ToNumerics(),
                 Forward = Vector3.Forward.ToNumerics(),
                 Up = Vector3.Up.ToNumerics()
             };
 
-            // Configurar el oyente (la camara del jugador)
             _listener.Position = listenerPosition.ToNumerics();
             _listener.Forward = listenerForward.ToNumerics();
             _listener.Up = Vector3.Up.ToNumerics();
             _listener.Velocity = System.Numerics.Vector3.Zero;
 
-            // Aplicar el efecto 3D y reproducir
             instance.Apply3D(_listener, emitter);
             instance.Play();
+
+            if (pool.Count < MAX_INSTANCES_PER_SOUND)
+            {
+                pool.Enqueue(instance);
+            }
         }
 
         //Reproducir sonido stereo
         public void PlaySound(string soundName)
         {
-            if (_soundEffects.TryGetValue(soundName, out SoundEffect soundEffect))
+            if (!_soundEffects.TryGetValue(soundName, out SoundEffect soundEffect))
+                return;
+
+            // Obtener o crear el pool para este sonido
+            if (!_soundPools.TryGetValue(soundName, out var pool))
             {
-                SoundEffectInstance instance = soundEffect.CreateInstance();
-                instance.Volume = GetVolumeForSfx(soundName);
-                instance.Play();
+                pool = new Queue<SoundEffectInstance>();
+                _soundPools[soundName] = pool;
+            }
+
+            SoundEffectInstance instance = null;
+
+            // Buscar una instancia disponible en el pool
+            while (pool.Count > 0)
+            {
+                var candidate = pool.Dequeue();
+                if (candidate.State == SoundState.Stopped)
+                {
+                    instance = candidate;
+                    break;
+                }
+                // Si esta reproduciendose, descartarla (no deberia pasar pero por seguridad)
+                candidate.Dispose();
+            }
+
+            // Si no hay instancia disponible, crear una nueva
+            if (instance == null)
+            {
+                instance = soundEffect.CreateInstance();
+            }
+
+            instance.Volume = GetVolumeForSfx(soundName);
+            instance.Play();
+
+            // Devolver al pool si no esta lleno
+            if (pool.Count < MAX_INSTANCES_PER_SOUND)
+            {
+                pool.Enqueue(instance);
+            }
+            else
+            {
+                // Si el pool esta lleno, dejar que se reproduzca y se destruya sola
+                // (no la devolvemos al pool)
             }
         }
 

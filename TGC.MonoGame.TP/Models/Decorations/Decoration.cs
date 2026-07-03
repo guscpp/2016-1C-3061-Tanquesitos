@@ -31,6 +31,7 @@ public class Decoration
     protected Effect _effect;
 
     public Vector3 Position => _position; //Es la variable de solo lectura de la posicion
+    private static readonly Vector3[] _cornersCache = new Vector3[8];
 
     protected float _normalOffsetScale;
 
@@ -76,13 +77,12 @@ public class Decoration
 
     protected void RecalculateWorldBoundingBox()
     {
-        var corners = new Vector3[8];
-        _boundingBox.GetCorners(corners); //genera los 8 vertices de la caja local
-        for (int i = 0; i < corners.Length; i++)
+        _boundingBox.GetCorners(_cornersCache); //genera los 8 vertices de la caja local
+        for (int i = 0; i < _cornersCache.Length; i++)
         {
-            corners[i] = Vector3.Transform(corners[i], _world);
+            _cornersCache[i] = Vector3.Transform(_cornersCache[i], _world);
         }
-        _worldBoundingBox = BoundingBox.CreateFromPoints(corners);
+        _worldBoundingBox = BoundingBox.CreateFromPoints(_cornersCache);
     }
 
     //DIBUJO (Modificable)

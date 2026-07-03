@@ -127,7 +127,7 @@ public class StaticsManager
         }
 
         int totalVisible = visibleModels.Values.Sum(l => l.Count);
-        Console.WriteLine($"Estaticos Visibles: {totalVisible} / {_decorationModels.Count}");
+        //Console.WriteLine($"Estaticos Visibles: {totalVisible} / {_decorationModels.Count}");
     }
 
     public void Draw(Matrix view, Matrix projection)

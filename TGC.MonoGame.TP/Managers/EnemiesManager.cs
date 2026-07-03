@@ -24,6 +24,7 @@ public class EnemiesManager
     private int _enemiesCount = Enemies.EnemiesCount;
     public List<TankEnemy> _enemies = new();
     private List<BodyHandle> _enemiesHandles = new();
+    private List<Vector3> _enemiesPositionsCache = new List<Vector3>(GameConfig.Enemies.EnemiesCount);
     
     //sobre el terreno
     private Terrain _terrain;
@@ -73,10 +74,10 @@ public class EnemiesManager
 
     public List<Vector3> GetEnemiesPositions()
     {
-        var positions = new List<Vector3>();
+        _enemiesPositionsCache.Clear();
         foreach(var enemy in _enemies)
-            if(!enemy.IsDead) positions.Add(enemy.Position);
-        return positions;
+            if(!enemy.IsDead) _enemiesPositionsCache.Add(enemy.Position);
+        return _enemiesPositionsCache;
     }
 
     public void Update(GameTime gameTime, Vector3 position) {
@@ -117,7 +118,7 @@ public class EnemiesManager
                 totalVisible++;
             }
         }
-        Console.WriteLine($"Casas Visibles: {totalVisible} / {_enemiesCount}");
+        //Console.WriteLine($"Casas Visibles: {totalVisible} / {_enemiesCount}");
     }
 
     public void DrawDepth(Matrix lightViewProjection, BoundingFrustum CameraFrustum)

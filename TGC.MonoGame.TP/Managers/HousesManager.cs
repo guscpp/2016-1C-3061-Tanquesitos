@@ -109,7 +109,7 @@ public class HousesManager
                 group.Value.SetVisibleInstances(new List<Matrix>()); // nada visible de ese modelo
         }
         int totalVisible = visibleModels.Values.Sum(l => l.Count);
-        Console.WriteLine($"Casas Visibles: {totalVisible} / {_houses.Count}");
+        //Console.WriteLine($"Casas Visibles: {totalVisible} / {_houses.Count}");
     }
 
     public void Draw(Matrix view, Matrix projection)

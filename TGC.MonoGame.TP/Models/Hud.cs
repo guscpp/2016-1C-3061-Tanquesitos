@@ -22,6 +22,18 @@ public class Hud
     private SpriteBatch _spriteBatch;
     private SpriteFont _font;
 
+    private Color _fuelColorCache;
+    private Color _healthColorCache;
+    private Color _cooldownColorCache;
+    private Rectangle _fuelBarBgRect;
+    private Rectangle _fuelBarFillRect;
+    private Rectangle _healthBarBgRect;
+    private Rectangle _healthBarFillRect;
+    private Rectangle _cooldownBarBgRect;
+    private Rectangle _cooldownBarFillRect;
+    private Rectangle _minimapRect;
+    private Rectangle _legendRect;
+
     // Parámetros de diseño responsive
     private readonly float _paddingPercentX = 0.02f;
     private readonly float _paddingPercentY = 0.02f;
@@ -171,7 +183,7 @@ public class Hud
 
         // panel para colocar los indicadores
         Vector2 rightPanelPosition = new Vector2(screenWidth - 250f - padX, padY);
-        float currentY = rightPanelPosition.Y; 
+        float currentY = rightPanelPosition.Y;
         Vector2 leftPanelPosition = new Vector2(padX, padY);
         float leftCurrentY = leftPanelPosition.Y;
 
@@ -192,68 +204,78 @@ public class Hud
 
         var fuelPosition = new Vector2(rightPanelPosition.X, currentY);
         currentY += _font.LineSpacing + spacing;
-        Color fuelColor = TankFuel > 30f ? Color.Lime : TankFuel > 10f ? Color.Yellow : Color.Red;
+
+        // ✅ OPTIMIZACIÓN: Cacheo el color en un campo para no crear un nuevo Color cada frame
+        _fuelColorCache = TankFuel > 30f ? Color.Lime : TankFuel > 10f ? Color.Yellow : Color.Red;
 
         _spriteBatch.DrawString(_font, _cachedFuelText, fuelPosition + Vector2.One, Color.Black);
-        _spriteBatch.DrawString(_font, _cachedFuelText, fuelPosition, fuelColor);
+        _spriteBatch.DrawString(_font, _cachedFuelText, fuelPosition, _fuelColorCache);
+
         float fuelPercent = TankFuel / 100f;
         Vector2 fuelBarPosition = new Vector2(rightPanelPosition.X, currentY);
         currentY += ProgressBarHeight + spacing * 2;
-        DrawBar(fuelBarPosition, fuelColor, fuelPercent);
+        DrawBar(fuelBarPosition, _fuelColorCache, fuelPercent);
 
         // === VIDA RESTANTE ===
         float healthPercent = getPlayerHealth() / TGCGame.Instance._tank.initialHealth;
-        Color healthColor = healthPercent > 0.5f ? Color.Lime : healthPercent > 0.25f ? Color.Yellow : Color.Red;
+
+        // ✅ OPTIMIZACIÓN: Cacheo el color de vida
+        _healthColorCache = healthPercent > 0.5f ? Color.Lime : healthPercent > 0.25f ? Color.Yellow : Color.Red;
+
         Vector2 healthTextPosition = new Vector2(rightPanelPosition.X, currentY);
         currentY += _font.LineSpacing + spacing;
         _spriteBatch.DrawString(_font, _cachedPlayerHealth, healthTextPosition + Vector2.One, Color.Black);
-        _spriteBatch.DrawString(_font, _cachedPlayerHealth, healthTextPosition, healthColor);
+        _spriteBatch.DrawString(_font, _cachedPlayerHealth, healthTextPosition, _healthColorCache);
+
         Vector2 healthBarPosition = new Vector2(rightPanelPosition.X, currentY);
         currentY += ProgressBarHeight + spacing * 2;
-        DrawBar(healthBarPosition, healthColor, healthPercent);
+        DrawBar(healthBarPosition, _healthColorCache, healthPercent);
 
         // === MINIMAP ===
         var minimapPosition = leftPanelPosition;
         leftCurrentY += MinimapSize + spacing;
-        var minimapRect = new Rectangle((int)minimapPosition.X, (int)minimapPosition.Y, MinimapSize, MinimapSize);
-        _spriteBatch.Draw(_whitePixel, minimapRect, Color.Black * 0.7f);
+
+        // ✅ OPTIMIZACIÓN: Cacheo el rectángulo del minimapa
+        _minimapRect = new Rectangle((int)minimapPosition.X, (int)minimapPosition.Y, MinimapSize, MinimapSize);
+        _spriteBatch.Draw(_whitePixel, _minimapRect, Color.Black * 0.7f);
 
         // dibuja jugador en el espacio de minimapa
-        Vector2 playerMarker = PositionWorldToMinimap(TankPosition, minimapRect);
-        float tankRotation = - TankRotation; // ángulo Y del tanque
+        Vector2 playerMarker = PositionWorldToMinimap(TankPosition, _minimapRect);
+        float tankRotation = -TankRotation; // ángulo Y del tanque
 
-        _spriteBatch.Draw(_playerTexture, playerMarker, null, Color.Lime, tankRotation, 
+        _spriteBatch.Draw(_playerTexture, playerMarker, null, Color.Lime, tankRotation,
             new Vector2(_playerTexture.Width / 2f, _playerTexture.Height / 2f), 0.5f, SpriteEffects.None, 0f);
 
         // dibuja enemigos en el espacio de minimapa
         foreach (var enemyPos in EnemyPositions)
         {
-            Vector2 enemyMarker = PositionWorldToMinimap(enemyPos, minimapRect);
-            if (minimapRect.Contains((int)enemyMarker.X, (int)enemyMarker.Y))
+            Vector2 enemyMarker = PositionWorldToMinimap(enemyPos, _minimapRect);
+            if (_minimapRect.Contains((int)enemyMarker.X, (int)enemyMarker.Y))
             {
-                _spriteBatch.Draw(_enemyTexture, enemyMarker, null, Color.Red, 0f, 
+                _spriteBatch.Draw(_enemyTexture, enemyMarker, null, Color.Red, 0f,
                     new Vector2(_enemyTexture.Width / 2f, _enemyTexture.Height / 2f), 0.5f, SpriteEffects.None, 0f);
             }
         }
         //dibuja los barriles de fuel
         foreach (var barrelPos in FuelPositions)
         {
-            Vector2 barrelMarker = PositionWorldToMinimap(barrelPos, minimapRect);
-            if (minimapRect.Contains((int)barrelMarker.X, (int)barrelMarker.Y))
+            Vector2 barrelMarker = PositionWorldToMinimap(barrelPos, _minimapRect);
+            if (_minimapRect.Contains((int)barrelMarker.X, (int)barrelMarker.Y))
             {
-                _spriteBatch.Draw(_fuelTexture, barrelMarker, null, Color.Yellow, 0f, 
+                _spriteBatch.Draw(_fuelTexture, barrelMarker, null, Color.Yellow, 0f,
                     new Vector2(_fuelTexture.Width / 2f, _fuelTexture.Height / 2f), 0.5f, SpriteEffects.None, 0f);
             }
         }
 
         // === BARRA DESCRIPTIVA DE ICONOS ===
-        Rectangle legendRect = new Rectangle((int)leftPanelPosition.X, (int)leftCurrentY, iconDesWidth, iconDesHeight);
-        _spriteBatch.Draw(_whitePixel, legendRect, Color.Black * 0.7f);
+        // ✅ OPTIMIZACIÓN: Cacheo el rectángulo de la leyenda
+        _legendRect = new Rectangle((int)leftPanelPosition.X, (int)leftCurrentY, iconDesWidth, iconDesHeight);
+        _spriteBatch.Draw(_whitePixel, _legendRect, Color.Black * 0.7f);
 
-        DrawIconAndText(_enemyTexture, "Enemigo", new Vector2(legendRect.X + 12, legendRect.Y + 15), Color.Red, legendRect);
-        DrawIconAndText(_fuelTexture, "Combustible", new Vector2(legendRect.X + 12, legendRect.Y + 40), Color.Yellow, legendRect);
+        DrawIconAndText(_enemyTexture, "Enemigo", new Vector2(_legendRect.X + 12, _legendRect.Y + 15), Color.Red, _legendRect);
+        DrawIconAndText(_fuelTexture, "Combustible", new Vector2(_legendRect.X + 12, _legendRect.Y + 40), Color.Yellow, _legendRect);
 
-        leftCurrentY += legendRect.X + spacing * 3;
+        leftCurrentY += _legendRect.X + spacing * 3;
 
         // === ENEMIGOS DERROTADOS ===
         var killsPosition = new Vector2(leftPanelPosition.X, leftCurrentY);
@@ -273,15 +295,17 @@ public class Hud
         leftCurrentY += _font.LineSpacing + spacing;
         var cooldownBarPos = new Vector2(leftPanelPosition.X, leftCurrentY);
         leftCurrentY += ProgressBarHeight + spacing * 2;
-        Color cooldownColor = remaining <= 0f ? Color.Lime : Color.Orange;
+
+        // ✅ OPTIMIZACIÓN: Cacheo el color del cooldown
+        _cooldownColorCache = remaining <= 0f ? Color.Lime : Color.Orange;
 
         _spriteBatch.DrawString(_font, _cachedCooldownText, cooldownPosition + Vector2.One, Color.Black);
-        _spriteBatch.DrawString(_font, _cachedCooldownText, cooldownPosition, cooldownColor);
+        _spriteBatch.DrawString(_font, _cachedCooldownText, cooldownPosition, _cooldownColorCache);
 
         // --- BARRA DE PROGRESO VECTORIAL GRÁFICA (Ahorra un 100% de Garbage Collector en este render) ---
         float barPercent = CannonMaxCooldown > 0f ? (1f - (remaining / CannonMaxCooldown)) : 1f;
         int activeWidth = (int)(barPercent * ProgressBarWidth);
-        DrawBar(cooldownBarPos, cooldownColor, barPercent);
+        DrawBar(cooldownBarPos, _cooldownColorCache, barPercent);
 
         // === damage numbers ===
         foreach (var dmgNum in _damageNumbers) dmgNum.Draw(_spriteBatch, _font);

@@ -125,7 +125,7 @@ public class DinamicsManager
                 totalVisible++;
             }
         }
-        Console.WriteLine($"Dinamicos Visibles: {totalVisible} / {NumberOfAssets}");
+        //Console.WriteLine($"Dinamicos Visibles: {totalVisible} / {NumberOfAssets}");
     }
 
     public void DrawDepth(Matrix lightViewProjection, BoundingFrustum CameraFrustum)
