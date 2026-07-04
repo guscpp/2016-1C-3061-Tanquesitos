@@ -88,6 +88,9 @@ public class GameStateManager
     private float _idleTime = 0f;
     private const float IdleAnimationSpeed = 2.5f; // Controls how fast the pulse is
 
+    private Texture2D _winTexture;
+    private Texture2D _loseTexture;
+
     public GameStateManager(GraphicsDevice graphicsDevice, ContentManager content, SoundManager soundManager)
     {
         _graphicsDevice = graphicsDevice;
@@ -120,6 +123,8 @@ public class GameStateManager
             _menuTankEffect = _menuContent.Load<Effect>("Effects/BlinnPhong");
             _menuTankTexture = _menuContent.Load<Texture2D>(ContentFolderTextures + "paleta_256x512");
             _menuSandTexture = _menuContent.Load<Texture2D>(ContentFolderTextures + "sand_seamless");
+            _winTexture = _content.Load<Texture2D>("Textures/game-over/win");
+            _loseTexture = _content.Load<Texture2D>("Textures/game-over/lose");
             _menuTracksTexture = _menuContent.Load<Texture2D>(ContentFolderTextures + GameConfig.Tank.TankTracksTexture);
             _currentMenuTankModel = _menuContent.Load<Model>(ContentFolder3D + GameConfig.Tank.TankModelPath);
 
@@ -223,7 +228,9 @@ public class GameStateManager
             case GameState.GameOver:
             case GameState.Win: // por ahora, mismo comportamiento que cuando se pierde
                 SoundManager.StopMusic();
-                if (kb.IsKeyDown(Keys.Enter) && lastKb.IsKeyUp(Keys.Enter))
+                bool anyKeyPressed = kb.GetPressedKeys().Length > 0 && lastKb.GetPressedKeys().Length == 0;
+
+                if (anyKeyPressed)
                 {
                     CurrentState = GameState.Menu;
                     _selectedIndex = 0;
@@ -417,7 +424,6 @@ public class GameStateManager
         }
         else if (CurrentState == GameState.Paused || CurrentState == GameState.GameOver || CurrentState == GameState.Win)
         {
-            //_graphicsDevice.Clear(Color.Black);
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
 
             if (CurrentState == GameState.Paused)
@@ -425,15 +431,40 @@ public class GameStateManager
                 _spriteBatch.Draw(_whitePixel, new Rectangle(0, 0, vp.Width, vp.Height), Color.Black * 0.66f);
                 DrawCenteredText("PAUSA\nPresiona P para continuar", center);
             }
-            else if (CurrentState == GameState.GameOver)
+            else if (CurrentState == GameState.GameOver || CurrentState == GameState.Win)
             {
-                _spriteBatch.Draw(_whitePixel, new Rectangle(0, 0, vp.Width, vp.Height), Color.Black * 0.66f);
-                DrawCenteredText($"GAME OVER\n{extraInfo}\nPresiona ENTER para volver al menu", center);
-            }
-            else if (CurrentState == GameState.Win)
-            {
-                _spriteBatch.Draw(_whitePixel, new Rectangle(0, 0, vp.Width, vp.Height), Color.Black * 0.66f);
-                DrawCenteredText($"! GANASTE !\n{extraInfo}\nPresiona ENTER para volver al menu", center);
+                // 1. Dibujar la imagen de fondo a pantalla completa
+                Texture2D bgTexture = (CurrentState == GameState.Win) ? _winTexture : _loseTexture;
+
+                if (bgTexture != null)
+                {
+                    // Se dibuja estirada a todo el viewport
+                    _spriteBatch.Draw(bgTexture, new Rectangle(0, 0, vp.Width, vp.Height), Color.White);
+                }
+                else
+                {
+                    // Fallback por si acaso no cargo la textura
+                    _spriteBatch.Draw(_whitePixel, new Rectangle(0, 0, vp.Width, vp.Height), Color.Black);
+                }
+
+                // 2. Dibujar el texto pulsante abajo (Reutilizando la logica de Intro)
+                float pulse = (MathF.Sin(_idleTime * 4f) + 1f) / 2f; // Oscila suavemente
+                float scale = 1.0f + (pulse * 0.05f); // Escala entre 1.0x y 1.05x
+                string hint = "Presiona cualquier tecla para continuar";
+
+                Vector2 hintSize = _fontConsolas.MeasureString(hint) * scale;
+                Vector2 hintPos = new Vector2(vp.Width / 2f - hintSize.X / 2f, vp.Height - 100f);
+
+                // Fondo semitransparente detrás del texto para que resalte sobre la imagen
+                Rectangle bgRect = new Rectangle((int)hintPos.X - 30, (int)hintPos.Y - 15, (int)hintSize.X + 60, (int)hintSize.Y + 30);
+                _spriteBatch.Draw(_whitePixel, bgRect, new Color(0, 0, 0, 150));
+
+                // Sombra del texto
+                _spriteBatch.DrawString(_fontConsolas, hint, hintPos + new Vector2(3, 3), new Color(0, 0, 0, 255), 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
+
+                // Texto principal con color pulsante (Blanco a Dorado)
+                Color textColor = Color.Lerp(Color.White, Color.Gold, pulse);
+                _spriteBatch.DrawString(_fontConsolas, hint, hintPos, textColor, 0f, Vector2.Zero, scale, SpriteEffects.None, 0f);
             }
 
             _spriteBatch.End();
