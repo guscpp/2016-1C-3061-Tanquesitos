@@ -104,5 +104,7 @@ public class TankPlayer : TankBase
         ApplyPhysics(simulation, dt, forwardInput, turnInput);
 
         RecalculateMatrices();
+
+        RecalculateWorldBoundingBox();
     }
 }

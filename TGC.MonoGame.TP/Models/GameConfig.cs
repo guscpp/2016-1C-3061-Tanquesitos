@@ -178,7 +178,7 @@ public static class GameConfig
         public const float DefaultHeightOffset = 4.5f;      // metros, altura sobre el tanque en vista normal
         public const float HatchHeightOffset = 2.4f;        // metros, altura en modo escotilla (comandante)
 
-        public const float HatchPositionForwardOffset = 0.8f; // metros, poner la camara adelantada hacia el canon
+        public const float HatchPositionForwardOffset = 0.4f; // metros, poner la camara adelantada hacia el canon
 
         // --- PUNTO DE MIRA (LOOK AT) ---
         public const float DefaultLookAtHeight = 3.0f;      // metros, altura a la que mira en vista normal
@@ -192,8 +192,8 @@ public static class GameConfig
         public const float Smoothness = 10f;                // 1/segundos, factor de suavizado del movimiento (Lerp)
 
         // --- PROYECCION ---
-        public const float NearPlaneDist = 0.1f;            // metros, plano de corte cercano (evita clipping del canon)
-        public const float FarPlaneDist = 250f;             // metros, plano de corte lejano
+        public const float NearPlaneDist = 0.05f;           // metros, plano de corte cercano (evita clipping del canon)
+        public const float FarPlaneDist = 750f;             // metros, plano de corte lejano
 
         // --- EFECTOS ---
         public const float ShakeIntensity = 1.025f;         // metros, amplitud del camera-shake al recibir daño

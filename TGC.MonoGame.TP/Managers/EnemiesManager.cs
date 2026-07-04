@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using TGC.MonoGame.TP.Gizmos;
 using TGC.MonoGame.TP.Models.Tanks;
 using static TGC.MonoGame.TP.GameConfig;
@@ -106,14 +107,18 @@ public class EnemiesManager
             tankEnemy.UpdateEnemy(gameTime, _simulation, position.ToNumerics());
 
         }
-     }
+    }
 
     public void Draw(Matrix view, Matrix projection, Vector3 cameraPosition, BoundingFrustum CameraFrustum)
     {
         int totalVisible = 0;
-        foreach(var tankEnemy in _enemies)
+        foreach (var tankEnemy in _enemies)
         {
-            if(CameraFrustum.Intersects(tankEnemy._worldBoundingVolume)) {
+            float distSq = Vector3.DistanceSquared(cameraPosition, tankEnemy.Position);
+            bool isClose = distSq < 225f; // 225 = 15*15
+
+            if (true || isClose || CameraFrustum.Intersects(tankEnemy._worldBoundingVolume))
+            {
                 tankEnemy.Draw(view, projection, cameraPosition);
                 totalVisible++;
             }
@@ -123,9 +128,9 @@ public class EnemiesManager
 
     public void DrawDepth(Matrix lightViewProjection, BoundingFrustum CameraFrustum)
     {
-        foreach(var tankEnemy in _enemies)
+        foreach (var tankEnemy in _enemies)
         {
-            if(CameraFrustum.Intersects(tankEnemy._worldBoundingVolume))
+            if (true || CameraFrustum.Intersects(tankEnemy._worldBoundingVolume))
                 tankEnemy.DrawDepth(lightViewProjection);
         }
     }

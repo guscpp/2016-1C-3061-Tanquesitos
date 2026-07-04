@@ -88,6 +88,8 @@ public class TGCGame : Game
     // Variable para contabilizar las kills del jugador
     public int EnemiesKilled = 0;
 
+    public Gizmo Gizmos => _gizmos;
+
     // ------Optimizacion
     private BoundingFrustum _cameraFrustum; // frustum de la camara para hacer frustum culling
     public BoundingFrustum CameraFrustum => _cameraFrustum;
