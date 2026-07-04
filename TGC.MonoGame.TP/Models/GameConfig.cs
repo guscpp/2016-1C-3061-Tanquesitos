@@ -172,13 +172,14 @@ public static class GameConfig
         // --- DISTANCIAS Y POSICION ---
         public const float DefaultDistance = 10f;           // metros, distancia inicial de la camara al tanque
         public const float MinDistance = 1.5f;              // metros, zoom maximo (vista comandante)
-        public const float MaxDistance = 35f;               // metros, zoom mínimo (vista mas lejana)
+        public const float MaxDistance = 15f;               // metros, zoom mínimo (vista mas lejana)
 
         // --- ALTURA DE LA CAMARA ---
         public const float DefaultHeightOffset = 4.5f;      // metros, altura sobre el tanque en vista normal
         public const float HatchHeightOffset = 2.4f;        // metros, altura en modo escotilla (comandante)
 
         public const float HatchPositionForwardOffset = 0.4f; // metros, poner la camara adelantada hacia el canon
+        public const float ElevationAngle = 20f;            // grados, sobre el horizonte
 
         // --- PUNTO DE MIRA (LOOK AT) ---
         public const float DefaultLookAtHeight = 3.0f;      // metros, altura a la que mira en vista normal
@@ -200,7 +201,7 @@ public static class GameConfig
         public const float ShakeDuration = 0.100f;          // segundos, duracion del camera-shake
 
         // --- LIMITES ---
-        public const float TerrainClampOffset = 1.0f;       // metros, altura minima de la cámara sobre el terreno
+        public const float TerrainClampOffset = 2.0f;       // metros, altura minima de la cámara sobre el terreno
     }
 
     // ASSETS (CASAS, DECORACIONES)
