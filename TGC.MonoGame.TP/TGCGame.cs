@@ -101,6 +101,7 @@ public class TGCGame : Game
         Window.Title = "Tanquesitos";
         _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
         _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
+        _graphics.HardwareModeSwitch = false;
         Content.RootDirectory = "Content";
         IsMouseVisible = true; //Oculto el mouse porque da dolor de cabeza
     }
@@ -240,6 +241,12 @@ public class TGCGame : Game
         if (kb.IsKeyDown(Keys.G) && !_lastKeyboardState.IsKeyDown(Keys.G))
         {
             _gameStateManager.ToggleGodMode();
+        }
+
+        if (kb.IsKeyDown(Keys.O) && !_lastKeyboardState.IsKeyDown(Keys.O))
+        {
+            _graphics.IsFullScreen = !_graphics.IsFullScreen;
+            _graphics.ApplyChanges();
         }
 
         _lastKeyboardState = kb;
