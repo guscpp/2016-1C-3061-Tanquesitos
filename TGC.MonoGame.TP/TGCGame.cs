@@ -390,7 +390,6 @@ public class TGCGame : Game
 
             var cameraCorners = GetCameraFrustumCorners();
             smm.FitDynamicToCamera(cameraCorners);
-
             smm.BeginDynamicShadowPass();
             _tank.DrawDepth(lvp);
             _enemiesManager.DrawDepth(lvp, CameraFrustum);

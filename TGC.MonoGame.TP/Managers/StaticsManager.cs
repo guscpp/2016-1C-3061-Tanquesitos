@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using TGC.MonoGame.TP.Models;
 using TGC.MonoGame.TP.Models.Decorations;
+using TGC.MonoGame.TP.Collisions;
 using Static = TGC.MonoGame.TP.Models.Decorations.Static;
 using Terrain = TGC.MonoGame.TP.Models.Terrains.Terrain;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
@@ -97,8 +98,17 @@ public class StaticsManager
         foreach (var entry in _instancedMatrices)
         {
             var model = content.Load<Model>(ContentFolder3D + entry.Key);
-            _decorationGroups[entry.Key] = new InstancedDecorationGroup(model, entry.Value, _graphicsDevice, sharedTexture, effect);
+            var normalOffset = CalculateNormalOffsetScale(model);
+            _decorationGroups[entry.Key] = new InstancedDecorationGroup(model, normalOffset, entry.Value, _graphicsDevice, sharedTexture, effect);
         }
+    }
+
+    private float CalculateNormalOffsetScale(Model model)
+    {
+        var bbox = BoundingVolumesUtils.CreateBoundingBox(model);
+        var dimensions = bbox.Max - bbox.Min;
+        var objectSize = Math.Max(dimensions.X, Math.Max(dimensions.Y, dimensions.Z));
+        return MathHelper.Clamp(objectSize * 0.02f, 0.03f, 0.6f);
     }
 
     public void Update(BoundingFrustum CameraFrustum)

@@ -5,6 +5,7 @@ using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Media;
 using System;
 using TGC.MonoGame.TP.Models;
+using TGC.MonoGame.TP.Collisions;
 
 namespace TGC.MonoGame.TP.Managers;
 
@@ -91,6 +92,8 @@ public class GameStateManager
     private Texture2D _winTexture;
     private Texture2D _loseTexture;
 
+    private ShadowMapManager _menuShadowMapManager;
+
     public GameStateManager(GraphicsDevice graphicsDevice, ContentManager content, SoundManager soundManager)
     {
         _graphicsDevice = graphicsDevice;
@@ -120,7 +123,9 @@ public class GameStateManager
             _menuContent = new ContentManager(_content.ServiceProvider, "Content");
 
             //_menuTankEffect = _content.Load<Effect>("Effects/BasicShaderTexture");
-            _menuTankEffect = _menuContent.Load<Effect>("Effects/BlinnPhong");
+            _menuTankEffect = _menuContent.Load<Effect>("Effects/ShadowMap");
+            _menuTankEffect.Parameters["LightColor"]?.SetValue(new Vector3(0.65f, 0.55f, 0.40f));
+            _menuTankEffect.Parameters["AmbientColor"]?.SetValue(new Vector3(0.25f, 0.25f, 0.25f));
             _menuTankTexture = _menuContent.Load<Texture2D>(ContentFolderTextures + "paleta_256x512");
             _menuSandTexture = _menuContent.Load<Texture2D>(ContentFolderTextures + "sand_seamless");
             _winTexture = _content.Load<Texture2D>("Textures/game-over/win");
@@ -163,6 +168,17 @@ public class GameStateManager
         {
             System.Diagnostics.Debug.WriteLine($"Error loading 3D menu assets: {ex.Message}");
         }
+
+        _menuShadowMapManager = new ShadowMapManager(_graphicsDevice, 2048)
+        {
+            LightPosition = new Vector3(15f, 20f, 10f),
+            LightTarget = Vector3.Zero
+        };
+
+        _menuShadowMapManager.FitStaticToScene(
+            new Vector3(-15f, -2f, -20f),
+            new Vector3(15f, 10f, 5f)
+        );
     }
 
     public void HandleMenuState(KeyboardState kb, KeyboardState lastkb)
@@ -385,41 +401,61 @@ public class GameStateManager
         {
             _graphicsDevice.Clear(Color.DarkSlateGray);
 
-            // Camera adjustments
             Matrix view = Matrix.CreateLookAt(new Vector3(7f, 8f, 7f), new Vector3(0, 2, 0), Vector3.Up);
             Matrix projection = Matrix.CreatePerspectiveFieldOfView(MathHelper.PiOver4, vp.AspectRatio, 0.1f, 100f);
 
-            // Fix culling and depth issues
+            // --- DEPTH PASS ---
+            var smm = _menuShadowMapManager;
+            smm.BeginStaticShadowPass();
+            var lvp = smm.LightViewProjection;
+
+            DrawMenuDepth(_menuTerrainModel,       _terrainWorld,       lvp);
+            DrawMenuDepth(_menuArbolMuerto1Model,  _arbolMuerto1World,  lvp);
+            DrawMenuDepth(_menuBarrilModel,        _barrilWorld,        lvp);
+            DrawMenuDepth(_menuCactus1Model,       _cactus1World,       lvp);
+            DrawMenuDepth(_menuCasitaMedianaModel, _casitaMedianaWorld, lvp);
+            DrawMenuDepth(_menuPozoModel,          _pozoWorld,          lvp);
+            DrawMenuDepth(_menuCarretaModel,       _carretaWorld,       lvp);
+
+            if (_selectedIndex < 3 && _currentMenuTankModel != null)
+            {
+                Matrix tankWorld = Matrix.CreateRotationX(MathHelper.ToRadians(-90f)) *
+                                Matrix.CreateRotationY(_menuTankRotation) *
+                                Matrix.CreateTranslation(0f, 0.45f, 0f);
+                DrawMenuDepth(_currentMenuTankModel, tankWorld, lvp);
+            }
+
+            // --- LIGHTING PASS ---
+            smm.BeginLightingPass(_menuTankEffect);
+            _graphicsDevice.Clear(Color.DarkSlateGray);
+
             _graphicsDevice.RasterizerState = RasterizerState.CullNone;
             _graphicsDevice.DepthStencilState = DepthStencilState.Default;
             _graphicsDevice.BlendState = BlendState.Opaque;
 
             if (_menuTerrainModel != null)
             {
-                DrawMenuEnvironmentModel(_menuTerrainModel, _terrainWorld, view, projection);
-                DrawMenuEnvironmentModel(_menuArbolMuerto1Model, _arbolMuerto1World, view, projection);
-                DrawMenuEnvironmentModel(_menuBarrilModel, _barrilWorld, view, projection);
-                DrawMenuEnvironmentModel(_menuCactus1Model, _cactus1World, view, projection);
+                DrawMenuEnvironmentModel(_menuTerrainModel,       _terrainWorld,       view, projection);
+                DrawMenuEnvironmentModel(_menuArbolMuerto1Model,  _arbolMuerto1World,  view, projection);
+                DrawMenuEnvironmentModel(_menuBarrilModel,        _barrilWorld,        view, projection);
+                DrawMenuEnvironmentModel(_menuCactus1Model,       _cactus1World,       view, projection);
                 DrawMenuEnvironmentModel(_menuCasitaMedianaModel, _casitaMedianaWorld, view, projection);
-                DrawMenuEnvironmentModel(_menuPozoModel, _pozoWorld, view, projection);
-                DrawMenuEnvironmentModel(_menuCarretaModel, _carretaWorld, view, projection);
+                DrawMenuEnvironmentModel(_menuPozoModel,          _pozoWorld,          view, projection);
+                DrawMenuEnvironmentModel(_menuCarretaModel,       _carretaWorld,       view, projection);
             }
 
             if (_selectedIndex < 3 && _currentMenuTankModel != null)
             {
                 Matrix tankWorld = Matrix.CreateRotationX(MathHelper.ToRadians(-90f)) *
-                                   Matrix.CreateRotationY(_menuTankRotation) *
-                                   Matrix.CreateTranslation(0f, 0.45f, 0f);
-
+                                Matrix.CreateRotationY(_menuTankRotation) *
+                                Matrix.CreateTranslation(0f, 0.45f, 0f);
                 Draw3DTank(tankWorld, view, projection);
             }
 
             _spriteBatch.Begin(SpriteSortMode.Deferred, BlendState.AlphaBlend);
-
             if (_selectedIndex < 3)
                 DrawTankSpecs(vp);
-            
-            DrawMenu(center);
+            DrawMenu(new Vector2(vp.Width / 2f, vp.Height / 2f));
             _spriteBatch.End();
         }
         else if (CurrentState == GameState.Paused || CurrentState == GameState.GameOver || CurrentState == GameState.Win)
@@ -471,58 +507,66 @@ public class GameStateManager
         }
     }
 
+    private void DrawMenuDepth(Model model, Matrix world, Matrix lightViewProjection)
+    {
+        if (model == null || _menuTankEffect == null) return;
+
+        _menuTankEffect.CurrentTechnique = _menuTankEffect.Techniques["DepthPass"];
+        _menuTankEffect.Parameters["World"]?.SetValue(world);
+        _menuTankEffect.Parameters["LightViewProjection"]?.SetValue(lightViewProjection);
+        _menuTankEffect.Parameters["IsDeformable"]?.SetValue(0);
+
+        foreach (var mesh in model.Meshes)
+        {
+            foreach (var part in mesh.MeshParts)
+                part.Effect = _menuTankEffect;
+            mesh.Draw();
+        }
+    }
+
     private void Draw3DTank(Matrix world, Matrix view, Matrix projection)
     {
-        if (_currentMenuTankModel == null || _menuTankEffect == null || _menuTankTexture == null)
-        {
-            return;
-        }
+        if (_currentMenuTankModel == null || _menuTankEffect == null || _menuTankTexture == null) return;
 
-        Microsoft.Xna.Framework.Vector3 whiteColor = Microsoft.Xna.Framework.Vector3.One;
-        Microsoft.Xna.Framework.Vector3 menuTankColor = Microsoft.Xna.Framework.Color.White.ToVector3();
-        
-        if (_selectedIndex == 0) // Scout
-            menuTankColor = new Microsoft.Xna.Framework.Color(50, 205, 50).ToVector3();   // Verde
-        else if (_selectedIndex == 1) // Medium
-            menuTankColor = new Microsoft.Xna.Framework.Color(255, 215, 0).ToVector3();   // Amarillo
-        else if (_selectedIndex == 2) // Heavy
-            menuTankColor = new Microsoft.Xna.Framework.Color(178, 34, 34).ToVector3();   // Rojo
+        var smm = _menuShadowMapManager;
 
-        _menuTankEffect.Parameters["LightDirection"].SetValue(new Microsoft.Xna.Framework.Vector3(0.5f, 1.0f, 0.3f));
-        _menuTankEffect.Parameters["LightColor"].SetValue(Vector3.One);
-        _menuTankEffect.Parameters["AmbientColor"].SetValue(new Vector3(0.2f, 0.2f, 0.2f));
-        _menuTankEffect.Parameters["EyePosition"].SetValue(new Vector3(10f, 13f, 18f));
-        _menuTankEffect.Parameters["Shininess"].SetValue(32f);
+        Vector3 menuTankColor = Vector3.One;
+        if (_selectedIndex == 0)      menuTankColor = new Color(50, 205, 50).ToVector3();
+        else if (_selectedIndex == 1) menuTankColor = new Color(255, 215, 0).ToVector3();
+        else if (_selectedIndex == 2) menuTankColor = new Color(178, 34, 34).ToVector3();
+
+        _menuTankEffect.Parameters["View"]?.SetValue(view);
+        _menuTankEffect.Parameters["Projection"]?.SetValue(projection);
+        _menuTankEffect.Parameters["normalOffsetScale"]?.SetValue(0.05f);
+        _menuTankEffect.Parameters["Shininess"]?.SetValue(32f);
+        _menuTankEffect.Parameters["IsDeformable"]?.SetValue(0);
+        _menuTankEffect.Parameters["TrackOffset"]?.SetValue(0f);
+        _menuTankEffect.Parameters["lightPosition"]?.SetValue(smm.LightPosition);
+        _menuTankEffect.Parameters["LightViewProjection"]?.SetValue(smm.LightViewProjection);
+        _menuTankEffect.Parameters["shadowMapStatic"]?.SetValue(smm.StaticShadowRenderTarget);
+        _menuTankEffect.Parameters["shadowMapDynamic"]?.SetValue(smm.StaticShadowRenderTarget);
+        _menuTankEffect.Parameters["shadowMapSize"]?.SetValue(new Vector2(2048, 2048));
+
+        _menuTankEffect.CurrentTechnique = _menuTankEffect.Techniques["DrawShadowedHibrido"];
 
         foreach (var mesh in _currentMenuTankModel.Meshes)
         {
-            Texture2D activeTexture = _menuTankTexture;
-            if (mesh.Name.Contains("Cadena")) activeTexture = _menuTracksTexture;
-            else activeTexture = _menuTankTexture;
-            _menuTankEffect.Parameters["ModelTexture"].SetValue(activeTexture);
+            Texture2D activeTexture = mesh.Name.Contains("Cadena") ? _menuTracksTexture : _menuTankTexture;
 
-            Microsoft.Xna.Framework.Vector3 colorToApply = whiteColor;
-
+            Vector3 colorToApply = Vector3.One;
             if (mesh.Name.Contains("Cabeza") || mesh.Name.Contains("Anillo") ||
                 mesh.Name.Contains("Proteccion_d") || mesh.Name.Contains("Proteccion_i") ||
                 mesh.Name.Contains("Cuerpo") || mesh.Name.Contains("Cubre"))
                 colorToApply = menuTankColor;
 
-            foreach (var part in mesh.MeshParts)
-            {
-                part.Effect = _menuTankEffect;
-                _menuTankEffect.Parameters["World"].SetValue(world);
-                _menuTankEffect.Parameters["View"].SetValue(view);
-                _menuTankEffect.Parameters["Projection"].SetValue(projection);
-                _menuTankEffect.Parameters["ModelTexture"].SetValue(activeTexture);
-                _menuTankEffect.Parameters["DiffuseColor"].SetValue(colorToApply);
+            _menuTankEffect.Parameters["World"]?.SetValue(world);
+            _menuTankEffect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(world)));
+            _menuTankEffect.Parameters["ModelTexture"]?.SetValue(activeTexture);
+            _menuTankEffect.Parameters["DiffuseColor"]?.SetValue(colorToApply);
 
-                _menuTankEffect.Parameters["HasImpact"]?.SetValue(0);
-                _menuTankEffect.Parameters["ImpactPointWorld"]?.SetValue(Vector3.Zero);
-                _menuTankEffect.Parameters["ImpactRadius"]?.SetValue(GameConfig.Tank.ImpactRadius);
-                _menuTankEffect.Parameters["ImpactDepth"]?.SetValue(GameConfig.Tank.ImpactDepth);
-                _menuTankEffect.Parameters["IsDeformable"]?.SetValue(0);
-            }
+            foreach (var part in mesh.MeshParts)
+                part.Effect = _menuTankEffect;
+
             mesh.Draw();
         }
     }
@@ -931,34 +975,45 @@ public class GameStateManager
     {
         if (model == null || _menuTankEffect == null) return;
 
-        // Configuracion de luz (Reutilizamos el shader BlinnPhong)
-        _menuTankEffect.Parameters["LightDirection"]?.SetValue(new Microsoft.Xna.Framework.Vector3(0.5f, 1.0f, 0.3f));
-        _menuTankEffect.Parameters["LightColor"]?.SetValue(Vector3.One);
-        _menuTankEffect.Parameters["AmbientColor"]?.SetValue(new Vector3(0.3f, 0.3f, 0.3f)); // Un poco mas de luz ambiental
-        _menuTankEffect.Parameters["Shininess"]?.SetValue(16f);
-        _menuTankEffect.Parameters["EyePosition"]?.SetValue(new Vector3(10f, 13f, 18f));
+        var smm = _menuShadowMapManager;
 
-        // Parametros de deformacion/impacto en 0 (el entorno no se deforma)
+        _menuTankEffect.Parameters["View"]?.SetValue(view);
+        _menuTankEffect.Parameters["Projection"]?.SetValue(projection);
+         float normalOffset = CalculateNormalOffsetScale(model);
+        _menuTankEffect.Parameters["normalOffsetScale"]?.SetValue(normalOffset);
+        _menuTankEffect.Parameters["Shininess"]?.SetValue(32f);
         _menuTankEffect.Parameters["IsDeformable"]?.SetValue(0);
-        _menuTankEffect.Parameters["ImpactRadius"]?.SetValue(0f);
-        _menuTankEffect.Parameters["ImpactDepth"]?.SetValue(0f);
+        _menuTankEffect.Parameters["TrackOffset"]?.SetValue(0f);
+        _menuTankEffect.Parameters["lightPosition"]?.SetValue(smm.LightPosition);
+        _menuTankEffect.Parameters["LightViewProjection"]?.SetValue(smm.LightViewProjection);
+        _menuTankEffect.Parameters["shadowMapStatic"]?.SetValue(smm.StaticShadowRenderTarget);
+        _menuTankEffect.Parameters["shadowMapDynamic"]?.SetValue(smm.StaticShadowRenderTarget);
+        _menuTankEffect.Parameters["shadowMapSize"]?.SetValue(new Vector2(2048, 2048));
+
+        _menuTankEffect.CurrentTechnique = _menuTankEffect.Techniques["DrawShadowedHibrido"];
 
         foreach (var mesh in model.Meshes)
         {
-            Texture2D activeTexture = _menuTankTexture;
-            if (mesh.Name.Contains("Terreno")) activeTexture = _menuSandTexture;
+            Texture2D activeTexture = mesh.Name.Contains("Terreno") ? _menuSandTexture : _menuTankTexture;
+
+            _menuTankEffect.Parameters["World"]?.SetValue(world);
+            _menuTankEffect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(world)));
+            _menuTankEffect.Parameters["ModelTexture"]?.SetValue(activeTexture);
+            _menuTankEffect.Parameters["DiffuseColor"]?.SetValue(Vector3.One);
 
             foreach (var part in mesh.MeshParts)
-            {
                 part.Effect = _menuTankEffect;
-                _menuTankEffect.Parameters["World"].SetValue(world);
-                _menuTankEffect.Parameters["View"].SetValue(view);
-                _menuTankEffect.Parameters["Projection"].SetValue(projection);
-                _menuTankEffect.Parameters["ModelTexture"].SetValue(activeTexture);
-                _menuTankEffect.Parameters["DiffuseColor"].SetValue(Vector3.One);
-            }
+
             mesh.Draw();
         }
+    }
+
+    private float CalculateNormalOffsetScale(Model model)
+    {
+        var bbox = BoundingVolumesUtils.CreateBoundingBox(model);
+        var dimensions = bbox.Max - bbox.Min;
+        var objectSize = Math.Max(dimensions.X, Math.Max(dimensions.Y, dimensions.Z));
+        return MathHelper.Clamp(objectSize * 0.02f, 0.03f, 0.6f);
     }
 
     private void DrawRectOutline(Rectangle rect, Color color)
@@ -1007,5 +1062,7 @@ public class GameStateManager
     {
         _spriteBatch?.Dispose();
         _whitePixel?.Dispose();
+        _menuShadowMapManager?.Dispose();
+        _menuContent?.Unload(); 
     }
 }

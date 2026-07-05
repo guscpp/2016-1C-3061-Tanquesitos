@@ -79,7 +79,7 @@ public class HousesManager
         foreach (var entry in _instancedMatrices)
         {
             var model = content.Load<Model>(ContentFolder3D + entry.Key);
-            _houseGroups[entry.Key] = new InstancedDecorationGroup(model, entry.Value, _graphicsDevice, sharedTexture, effect);
+            _houseGroups[entry.Key] = new InstancedDecorationGroup(model, 0.6f, entry.Value, _graphicsDevice, sharedTexture, effect);
         }
     }
 

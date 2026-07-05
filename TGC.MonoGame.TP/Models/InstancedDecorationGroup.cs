@@ -15,13 +15,15 @@ public class InstancedDecorationGroup
     private readonly int _instanceCount;
     private Effect _effect;
     private readonly Texture2D _texture;
+    private readonly float _normalOffsetScale;
 
-    public InstancedDecorationGroup(Model model, List<Matrix> worldMatrices, GraphicsDevice graphicsDevice, Texture2D texture, Effect effect)
+    public InstancedDecorationGroup(Model model, float normalOffsetScale, List<Matrix> worldMatrices, GraphicsDevice graphicsDevice, Texture2D texture, Effect effect)
     {
         _model = model;
         _instanceCount = worldMatrices.Count;
         _graphicsDevice = graphicsDevice;
         _texture = texture;
+        _normalOffsetScale = normalOffsetScale;
         _effect = effect.Clone();
 
         _allInstances = worldMatrices;
@@ -68,8 +70,10 @@ public class InstancedDecorationGroup
         _effect.Parameters["View"]?.SetValue(view);
         _effect.Parameters["Projection"]?.SetValue(projection);
         _effect.Parameters["ModelTexture"]?.SetValue(_texture);
+        //_effect.Parameters["World"]?.SetValue(_world);
         _effect.Parameters["DiffuseColor"]?.SetValue(Vector3.One);
-        _effect.Parameters["normalOffsetScale"]?.SetValue(0.05f);
+        //_effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(_world)));
+        _effect.Parameters["normalOffsetScale"]?.SetValue(_normalOffsetScale);
         _effect.Parameters["Shininess"]?.SetValue(16f);
         _effect.Parameters["IsDeformable"]?.SetValue(0);
         _effect.Parameters["TrackOffset"]?.SetValue(0f);
@@ -117,7 +121,7 @@ public class InstancedDecorationGroup
         if (_visibleInstanceCount == 0) return;
 
         _effect.Parameters["LightViewProjection"]?.SetValue(lightViewProjection);
-        _effect.Parameters["normalOffsetScale"]?.SetValue(0.05f);
+        //_effect.Parameters["normalOffsetScale"]?.SetValue(_normalOffsetScale);
         _effect.Parameters["IsDeformable"]?.SetValue(0);
 
         _effect.CurrentTechnique = _effect.Techniques["DepthPassInstanced"];

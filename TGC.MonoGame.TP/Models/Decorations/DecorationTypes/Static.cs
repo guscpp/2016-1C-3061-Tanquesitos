@@ -25,6 +25,8 @@ namespace TGC.MonoGame.TP.Models.Decorations
         public override void LoadContent(ContentManager content, Simulation simulation, Effect effect)
         {
             base.LoadContent(content, simulation, effect);
+            var objectSize = Math.Max(_dimensions.X, Math.Max(_dimensions.Y, _dimensions.Z));
+            _normalOffsetScale = MathHelper.Clamp(objectSize * 0.02f, 0.03f, 0.6f);
         }
 
         //ACTUALIZO (Modificacion de la funcion en DECORATION)
