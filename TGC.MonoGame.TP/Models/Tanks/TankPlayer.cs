@@ -90,5 +90,14 @@ public class TankPlayer : TankBase
         else TGCGame.Instance.IsMouseVisible = true;
 
         ApplyPhysics(simulation, dt, forwardInput, turnInput);
+
+        if(forwardInput != 0)
+        {
+            // uno para cada oruga =D
+            var dustSpawnPos = Position + Vector3.Down * 0.4f + new Vector3(0,0,1);
+            var dustSpawnPos2 = Position + Vector3.Down * 0.4f + new Vector3(0,0,-1);
+            TGCGame.Instance.ParticlesManager.GenerateDust(dustSpawnPos, ChassisRight, (float)gameTime.TotalGameTime.TotalSeconds);
+            TGCGame.Instance.ParticlesManager.GenerateDust(dustSpawnPos2, ChassisRight, (float)gameTime.TotalGameTime.TotalSeconds);
+        }
     }
 }

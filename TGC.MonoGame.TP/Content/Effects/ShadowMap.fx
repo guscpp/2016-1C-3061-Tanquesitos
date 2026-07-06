@@ -212,6 +212,51 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
     return float4(finalColor, texColor.a);
 }
 
+
+// ==========================================
+// PARTICLE TECHNIQUE
+// ==========================================
+texture ParticleTexture;
+sampler2D particleSampler = sampler_state
+{
+    Texture = <ParticleTexture>;
+    MagFilter = Linear;
+    MinFilter = Linear;
+    AddressU = Clamp;
+    AddressV = Clamp;
+};
+
+struct ParticleVSInput
+{
+    float4 Position : POSITION0;
+    float4 Color    : COLOR0;
+    float2 TexCoord : TEXCOORD0;
+};
+
+struct ParticleVSOutput
+{
+    float4 Position : SV_POSITION;
+    float4 Color    : COLOR0;
+    float2 TexCoord : TEXCOORD0;
+};
+
+ParticleVSOutput ParticleVS(ParticleVSInput input)
+{
+    ParticleVSOutput output;
+    float4 viewPos = mul(input.Position, View);
+    output.Position = mul(viewPos, Projection);
+    output.Color = input.Color;
+    output.TexCoord = input.TexCoord;
+
+    return output;
+}
+
+float4 ParticlePS(ParticleVSOutput input) : COLOR0
+{
+    float4 texColor = tex2D(particleSampler, input.TexCoord);
+    return float4(texColor.rgb * input.Color.rgb, texColor.a * input.Color.a);
+}
+
 technique DepthPass
 {
 	pass Pass0
@@ -225,5 +270,19 @@ technique DrawShadowedHibrido {
     pass Pass0 {
         VertexShader = compile VS_SHADERMODEL MainVS();
         PixelShader = compile PS_SHADERMODEL ShadowedPCFPS();
+    }
+};
+
+technique Particles
+{
+    pass Pass0
+    {
+        AlphaBlendEnable = true;
+        SrcBlend = SrcAlpha;
+        DestBlend = InvSrcAlpha;
+        ZWriteEnable = false;
+
+        VertexShader = compile VS_SHADERMODEL ParticleVS();
+        PixelShader  = compile PS_SHADERMODEL ParticlePS();
     }
 };

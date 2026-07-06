@@ -67,6 +67,18 @@ public abstract class TankBase
         }
     }
 
+    // funcion para obtener el vector de la derecha del tanque
+    public Vector3 ChassisRight
+    {
+        get
+        {
+            var fwd3D = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(0, 0, -1), _physicsOrientation);
+            var right3D = System.Numerics.Vector3.Cross(System.Numerics.Vector3.UnitY, fwd3D);
+            var right = new Vector3(right3D.X, 0f, right3D.Z);
+            return right.LengthSquared() > 0.0001f ? Vector3.Normalize(right) : Vector3.Right;
+        }
+    }
+
     public Matrix WorldMatrix =>
         Matrix.CreateScale(GameConfig.Tank.TankScale) *
         Matrix.CreateRotationX(MathHelper.ToRadians(-90f)) *
@@ -141,6 +153,7 @@ public abstract class TankBase
             HealthPoints = 0;
             if (!(this is TankPlayer)) TGCGame.Instance.EnemiesKilled++;
             IsDead = true;
+            TGCGame.Instance.ParticlesManager.GenerateFire(impactPointWorld, (float)TGCGame.Instance.time.TotalGameTime.TotalSeconds);
         }
 
         int slot = (_lastImpactSlot + 1) % MaxImpacts;

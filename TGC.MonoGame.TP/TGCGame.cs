@@ -69,6 +69,8 @@ public class TGCGame : Game
     private SoundManager _soundManager;
     public SoundManager SoundManager => _gameStateManager.SoundManager;
     public SimpleCollisionTracker CollisionTracker { get; private set; } = new SimpleCollisionTracker();
+    private ParticlesManager _particlesManager;
+    public ParticlesManager ParticlesManager => _particlesManager;
     //-----------FISICAS
     private Simulation _simulation;
     private BufferPool _bufferPool;
@@ -84,6 +86,7 @@ public class TGCGame : Game
     public static GameConfig.TankClass SelectedPlayerTank;
     // Variable para contabilizar las kills del jugador
     public int EnemiesKilled = 0;
+    public GameTime time { get; private set; }
 
     public TGCGame()
     {
@@ -197,6 +200,10 @@ public class TGCGame : Game
         //fisicas
         _tankHandle = _tank.TankHandler;
 
+        // PARTICULAS
+        var particulasTexture = Content.Load<Texture2D>(ContentFolderTextures + "particula_100x100");
+        _particlesManager = new ParticlesManager(_shadowMapEffect, particulasTexture);
+
         //HUD
         _hud = new Hud();
         _hud.LoadContent(Content, GraphicsDevice);
@@ -218,6 +225,7 @@ public class TGCGame : Game
 
     protected override void Update(GameTime gameTime)
     {
+        time = gameTime;
         var kb = Keyboard.GetState();
         _gameStateManager.Update(gameTime, kb, _lastKeyboardState);
         _lastKeyboardState = kb;
@@ -272,6 +280,7 @@ public class TGCGame : Game
                 (Vector3.Up * GameConfig.Tank.CannonSpawnOffsetUp);
 
             _cannonballManager.Fire(spawnPosition, direction, _tank.AttackDamage, _gameStateManager.SoundManager, _camera.ListenerPosition, _camera.ListenerForward, true);
+            _particlesManager.GenerateSmoke(spawnPosition, direction, (float)gameTime.TotalGameTime.TotalSeconds);
         }
         _previousMouseState = currentMouseState;
 
@@ -291,6 +300,8 @@ public class TGCGame : Game
         _hud.EnemyPositions = _enemiesManager.GetEnemiesPositions();
         _hud.FuelPositions = _barrelsManager.GetBarrelsPositions();
         _hud.Update(gameTime);
+
+        _particlesManager.Update(gameTime);
 
         if (_tank.IsDead) _gameStateManager.ForceState(GameState.GameOver);
         if (EnemiesKilled >= GameConfig.Enemies.KillsToWin) _gameStateManager.ForceState(GameState.Win);
@@ -319,6 +330,7 @@ public class TGCGame : Game
         _enemiesManager.Reset(_simulation);
         _dinamicsManager.ResetDynamics(_simulation);
         _barrelsManager.Reset(_simulation);
+        _particlesManager.Reset();
 
         _camera = new TankFollowCamera(GraphicsDevice.Viewport.AspectRatio, _tank.Position);
     }
@@ -361,6 +373,7 @@ public class TGCGame : Game
             _dinamicsManager.Draw(_camera.View, _camera.Projection);
             _barrelsManager.Draw(_camera.View, _camera.Projection, _gizmos, _simulation);
             _enemiesManager.Draw(_camera.View, _camera.Projection, _camera.ListenerPosition);
+            _particlesManager.Draw(_camera.View, _camera.Projection);
 
             _hud.Draw();
             _gizmos.Draw();

@@ -111,7 +111,7 @@ public abstract class TankEnemy : TankBase
                 // Disparar
                 if (_currentShootCooldown <= 0f && distanceToPlayer > GameConfig.Enemies.AttackFireDistance)
                 {
-                    FireCannon(currentPos);
+                    FireCannon(currentPos, targetPos, gameTime);
                     _currentShootCooldown = ShootCooldown;
                 }
                 break;
@@ -144,7 +144,7 @@ public abstract class TankEnemy : TankBase
     }
 
     //Metodo auxiliar
-    private void FireCannon(Vector3 currentPos)
+    private void FireCannon(Vector3 currentPos, Vector3 direction, GameTime time)
     {
         var dir = CannonForward;
         var spawnPos = currentPos + dir * GameConfig.Enemies.CannonSpawnOffsetForward +
@@ -158,6 +158,8 @@ public abstract class TankEnemy : TankBase
             TGCGame.Instance.Camera.ListenerPosition,
             TGCGame.Instance.Camera.ListenerForward,
             false);
+        var smokeSpawnPos = currentPos + (Vector3.Normalize(CannonForward) + Vector3.Up) * 2f;
+        TGCGame.Instance.ParticlesManager.GenerateSmoke(smokeSpawnPos, direction, (float)time.TotalGameTime.TotalSeconds);
     }
 
     // Posicion inicial aleatoria para spawnear(sin cambios)

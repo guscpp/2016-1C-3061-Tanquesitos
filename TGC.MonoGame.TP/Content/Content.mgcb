@@ -871,6 +871,18 @@
 /processorParam:TextureFormat=Color
 /build:Textures/paleta.png
 
+#begin Textures/particula_100x100.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Textures/particula_100x100.png
+
 #begin Textures/sand_1024_seamless.png
 /importer:TextureImporter
 /processor:TextureProcessor
@@ -882,6 +894,18 @@
 /processorParam:MakeSquare=False
 /processorParam:TextureFormat=Color
 /build:Textures/sand_1024_seamless.png
+
+#begin Textures/smoke.png
+/importer:TextureImporter
+/processor:TextureProcessor
+/processorParam:ColorKeyColor=255,0,255,255
+/processorParam:ColorKeyEnabled=True
+/processorParam:GenerateMipmaps=False
+/processorParam:PremultiplyAlpha=True
+/processorParam:ResizeToPowerOfTwo=False
+/processorParam:MakeSquare=False
+/processorParam:TextureFormat=Color
+/build:Textures/smoke.png
 
 #begin Textures/tracks_2.png
 /importer:TextureImporter
