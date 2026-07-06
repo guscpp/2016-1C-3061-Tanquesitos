@@ -409,7 +409,7 @@ public class GameStateManager
             smm.BeginStaticShadowPass();
             var lvp = smm.LightViewProjection;
 
-            _menuTankEffect.Parameters["normalOffsetScale"]?.SetValue(0.02f);
+            _menuTankEffect.Parameters["normalOffsetScale"]?.SetValue(0f);
             DrawMenuDepth(_menuTerrainModel,       _terrainWorld,       lvp);
             DrawMenuDepth(_menuArbolMuerto1Model,  _arbolMuerto1World,  lvp);
             DrawMenuDepth(_menuBarrilModel,        _barrilWorld,        lvp);
@@ -436,13 +436,13 @@ public class GameStateManager
 
             if (_menuTerrainModel != null)
             {
-                DrawMenuEnvironmentModel(_menuTerrainModel,       _terrainWorld,       view, projection);
-                DrawMenuEnvironmentModel(_menuArbolMuerto1Model,  _arbolMuerto1World,  view, projection);
-                DrawMenuEnvironmentModel(_menuBarrilModel,        _barrilWorld,        view, projection);
-                DrawMenuEnvironmentModel(_menuCactus1Model,       _cactus1World,       view, projection);
-                DrawMenuEnvironmentModel(_menuCasitaMedianaModel, _casitaMedianaWorld, view, projection);
-                DrawMenuEnvironmentModel(_menuPozoModel,          _pozoWorld,          view, projection);
-                DrawMenuEnvironmentModel(_menuCarretaModel,       _carretaWorld,       view, projection);
+                DrawMenuEnvironmentModel(_menuTerrainModel,       _terrainWorld,       view, projection, CalculateNormalOffsetScale(_menuTerrainModel));
+                DrawMenuEnvironmentModel(_menuArbolMuerto1Model,  _arbolMuerto1World,  view, projection, CalculateNormalOffsetScale(_menuArbolMuerto1Model));
+                DrawMenuEnvironmentModel(_menuBarrilModel,        _barrilWorld,        view, projection, CalculateNormalOffsetScale(_menuBarrilModel));
+                DrawMenuEnvironmentModel(_menuCactus1Model,       _cactus1World,       view, projection, 0f);
+                DrawMenuEnvironmentModel(_menuCasitaMedianaModel, _casitaMedianaWorld, view, projection, 0.05f);
+                DrawMenuEnvironmentModel(_menuPozoModel,          _pozoWorld,          view, projection, 0f);
+                DrawMenuEnvironmentModel(_menuCarretaModel,       _carretaWorld,       view, projection, CalculateNormalOffsetScale(_menuCarretaModel));
             }
 
             if (_selectedIndex < 3 && _currentMenuTankModel != null)
@@ -515,6 +515,7 @@ public class GameStateManager
         _menuTankEffect.CurrentTechnique = _menuTankEffect.Techniques["DepthPass"];
         _menuTankEffect.Parameters["World"]?.SetValue(world);
         _menuTankEffect.Parameters["LightViewProjection"]?.SetValue(lightViewProjection);
+        //_menuTankEffect.Parameters["normalOffsetScale"]?.SetValue(0.02f);
         _menuTankEffect.Parameters["IsDeformable"]?.SetValue(0);
 
         foreach (var mesh in model.Meshes)
@@ -972,7 +973,7 @@ public class GameStateManager
     /// <summary>
     /// Dibuja un modelo generico del menu usando la configuracion de luz y textura del tanque.
     /// </summary>
-    private void DrawMenuEnvironmentModel(Model model, Matrix world, Matrix view, Matrix projection)
+    private void DrawMenuEnvironmentModel(Model model, Matrix world, Matrix view, Matrix projection, float normalOffset)
     {
         if (model == null || _menuTankEffect == null) return;
 
@@ -980,7 +981,6 @@ public class GameStateManager
 
         _menuTankEffect.Parameters["View"]?.SetValue(view);
         _menuTankEffect.Parameters["Projection"]?.SetValue(projection);
-         float normalOffset = CalculateNormalOffsetScale(model);
         _menuTankEffect.Parameters["normalOffsetScale"]?.SetValue(normalOffset);
         _menuTankEffect.Parameters["Shininess"]?.SetValue(32f);
         _menuTankEffect.Parameters["IsDeformable"]?.SetValue(0);
