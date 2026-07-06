@@ -17,6 +17,7 @@ namespace TGC.MonoGame.TP.Managers
 
         private Dictionary<string, Queue<SoundEffectInstance>> _soundPools = new Dictionary<string, Queue<SoundEffectInstance>>();
         private const int MAX_INSTANCES_PER_SOUND = 8;
+        private float _userMusicVolume = -1f;
 
         public SoundManager()
         {
@@ -67,7 +68,12 @@ namespace TGC.MonoGame.TP.Managers
             StopMusic();
             _currentSong = _content.Load<Song>(assetPath);
             MediaPlayer.IsRepeating = isLooping;
-            MediaPlayer.Volume = GetVolumeForMusic(assetPath);
+
+            if (_userMusicVolume >= 0f)
+                MediaPlayer.Volume = _userMusicVolume;
+            else
+                MediaPlayer.Volume = GetVolumeForMusic(assetPath);
+            
             MediaPlayer.Play(_currentSong);
         }
 
@@ -77,6 +83,16 @@ namespace TGC.MonoGame.TP.Managers
             {
                 MediaPlayer.Stop();
             }
+        }
+
+        public void ChangeMusicVolume(float delta)
+        {
+            if (_userMusicVolume < 0f)
+                _userMusicVolume = MediaPlayer.Volume;
+
+            _userMusicVolume = MathHelper.Clamp(_userMusicVolume + delta, 0f, 1f);
+
+            MediaPlayer.Volume = _userMusicVolume;
         }
 
         //Reproducir sonido 3D
