@@ -409,6 +409,7 @@ public class GameStateManager
             smm.BeginStaticShadowPass();
             var lvp = smm.LightViewProjection;
 
+            _menuTankEffect.Parameters["normalOffsetScale"]?.SetValue(0.02f);
             DrawMenuDepth(_menuTerrainModel,       _terrainWorld,       lvp);
             DrawMenuDepth(_menuArbolMuerto1Model,  _arbolMuerto1World,  lvp);
             DrawMenuDepth(_menuBarrilModel,        _barrilWorld,        lvp);
