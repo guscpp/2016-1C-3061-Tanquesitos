@@ -123,9 +123,16 @@ public class HousesManager
 
     public void DrawDepth(Matrix lightViewProjection)
     {
-        foreach (var group in _houseGroups.Values)
+        foreach (var group in _houseGroups)
         {
-            group.DrawDepth(lightViewProjection);
+            // 1. Obtenemos la lista original con TODAS las matrices (sin culling)
+            var fullList = _instancedMatrices[group.Key];
+
+            // 2. Restauramos el buffer en la GPU para que recupere el 100% de los objetos
+            group.Value.SetVisibleInstances(fullList);
+
+            // 3. Dibujamos el shadow map completo
+            group.Value.DrawDepth(lightViewProjection);
         }
     }
 
