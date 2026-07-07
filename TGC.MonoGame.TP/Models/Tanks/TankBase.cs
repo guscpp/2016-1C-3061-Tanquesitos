@@ -93,6 +93,26 @@ public abstract class TankBase
         }
     }
 
+    /// <summary>
+    /// Obtiene la posicion mundial del punto de contacto de una oruga con el suelo.
+    /// Considera la inclinacion real del tanque para que el polvo se genere a la altura correcta.
+    /// </summary>
+    /// <param name="isLeft">true para oruga izquierda, false para derecha</param>
+    protected Vector3 GetTrackContactPosition(bool isLeft)
+    {
+        // Matriz de mundo del cuerpo fisico (orientacion + posicion, sin offsets visuales del modelo)
+        Matrix bodyWorld = Matrix.CreateFromQuaternion(new Quaternion(
+            _physicsOrientation.X, _physicsOrientation.Y, _physicsOrientation.Z, _physicsOrientation.W)) *
+            Matrix.CreateTranslation(Position);
+
+        // Offset local de la oruga respecto al centro de masa del compound body
+        float halfWidth = GameConfig.Tank.PhysicsChassisWidth / 2.2f;
+        float lateralSign = isLeft ? -1f : 1f;
+        Vector3 trackLocal = new Vector3(halfWidth * lateralSign, -0.35f, 0f);
+
+        return Vector3.Transform(trackLocal, bodyWorld);
+    }
+
     protected Color GetTankColor()
     {
         switch (TankClass)

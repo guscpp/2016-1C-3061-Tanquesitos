@@ -6,9 +6,11 @@ using Vector3 = Microsoft.Xna.Framework.Vector3;
 
 namespace TGC.MonoGame.TP.Models.Particulas;
 
-public class SmokeParticle : Particle {
+public class SmokeParticle : Particle
+{
     private float _startSize;
     private float _endSize;
+
     public void Initialize(Vector3 position, Vector3 direction, float time)
     {
         genTime = time;
@@ -25,6 +27,8 @@ public class SmokeParticle : Particle {
         Velocity = Vector3.Normalize(Vector3.Up + direction + randomSpread) * speed;
         _color = Color.LightGray;
         maxTime = 1.2f;
+
+        _alpha = 0.6f;
     }
 
     public void Update(GameTime gameTime)
@@ -32,15 +36,19 @@ public class SmokeParticle : Particle {
         var totaltime = (float)gameTime.TotalGameTime.TotalSeconds;
         var dt = (float)gameTime.ElapsedGameTime.TotalSeconds;
         if (!_isAlive) return;
+
         var currentTime = totaltime - genTime;
         if (currentTime >= maxTime)
         {
             Reset();
             return;
         }
+
         var lifePercent = currentTime / maxTime;
         _size = MathHelper.Lerp(_startSize, _endSize, lifePercent);
-        // igual q el polvo, se va relentizando + desapareciendo
+
+        _alpha = MathHelper.Lerp(0.6f, 0f, lifePercent);
+
         Velocity *= (1f - 1.5f * dt);
         _currentPos += Velocity * dt;
     }

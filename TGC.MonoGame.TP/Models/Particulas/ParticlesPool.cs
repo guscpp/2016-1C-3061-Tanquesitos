@@ -2,7 +2,7 @@ namespace TGC.MonoGame.TP.Models.Particulas;
 
 public class ParticlesPool
 {
-    private int _maxParticles = 30; // size de cada pool - 30 particulas de cada tipo 
+    private int _maxParticles = 100; // size de cada pool
     public int MaxParticles => _maxParticles;
     public SmokeParticle[] _particulasHumo { get; private set; }
     public ExplosionParticle[] _particulasExplosion { get; private set; }

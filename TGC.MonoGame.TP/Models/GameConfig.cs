@@ -97,7 +97,7 @@ public static class GameConfig
         public const float VisualOffsetY = -0.35f;          // metros
 
         public const float CannonMuzzleOffsetY = 1.5f;  // metros
-        public const float CannonMuzzleOffsetZ = 2.0f;  // metros
+        public const float CannonMuzzleOffsetZ = 1.6f;  // metros, altura por encima de la base del tanque
         public const float MinCannonPitch = -10f;  // grados
         public const float MaxCannonPitch = 25f;   // grados
         public const float CannonSpawnOffsetForward = 1f;   // factor multiplicador

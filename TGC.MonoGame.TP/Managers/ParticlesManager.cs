@@ -35,7 +35,7 @@ public class ParticlesManager
 
     public void GenerateSmoke(Vector3 from, Vector3 direction, float currentTime)
     {
-        var particleCount = random.Next(1,4);
+        var particleCount = random.Next(3,6);
         for(int i=0; i<particleCount; i++)
         {
             var particula = pool.GetParticle(ParticlesPool.ParticleType.HUMO);
@@ -46,7 +46,7 @@ public class ParticlesManager
 
     public void GenerateFire(Vector3 from, float currentTime)
     {
-        var particleCount = random.Next(1,4);
+        var particleCount = random.Next(12,24);
         for(int i=0; i<particleCount; i++)
         {
             var particula = pool.GetParticle(ParticlesPool.ParticleType.FUEGO);
