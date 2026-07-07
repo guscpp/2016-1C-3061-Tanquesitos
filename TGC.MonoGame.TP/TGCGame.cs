@@ -269,11 +269,6 @@ public class TGCGame : Game
             _soundManager.ChangeMusicVolume(-0.05f);
         }
 
-        if (kb.IsKeyDown(Keys.R) && !_lastKeyboardState.IsKeyDown(Keys.R))
-        {
-            _shadowMapManager.RebajarSombrasEstaticas = true;
-        }
-
         _lastKeyboardState = kb;
 
         //El update del juego ocurre unicamente en estado Playing o GodMode, sino se sale temprano
