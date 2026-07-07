@@ -22,7 +22,7 @@ public class Particle
     // 40 particulas * 6 vertices cada una (2 triangulos)
     protected VertexPositionColorTexture[] _vertices = new VertexPositionColorTexture[40 * 6];
 
-    public void Draw(Matrix View, Matrix Projection, Effect effect, Texture2D texture)
+    public void Draw(Matrix View, Matrix Projection, Effect effect, Texture2D tex)
     {
         if (!_isAlive) return;
         var technique = effect.Techniques["Particles"];
@@ -49,11 +49,9 @@ public class Particle
         _vertices[vertexCount++] = new VertexPositionColorTexture(bottomRight, col, new Vector2(1, 1));
         _vertices[vertexCount++] = new VertexPositionColorTexture(bottomLeft, col, new Vector2(0, 1));
 
-
-        if (vertexCount == 0) return;
         effect.Parameters["View"]?.SetValue(View);
         effect.Parameters["Projection"]?.SetValue(Projection);
-        effect.Parameters["ParticleTexture"]?.SetValue(texture);
+        effect.Parameters["ParticleTexture"]?.SetValue(tex);
 
         var gd = effect.GraphicsDevice;
         gd.BlendState = BlendState.AlphaBlend;

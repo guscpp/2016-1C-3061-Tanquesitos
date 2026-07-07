@@ -15,14 +15,22 @@ public class ParticlesManager
 {
     private Effect _effect;
     private ParticlesPool pool = new();
-    private Texture2D particleTexture;
+    public Texture2D sandTexture;
+    public Texture2D smokeTexture;
+    public Texture2D explosionTexture;
     private Random random = new();
 
-    public ParticlesManager(Effect texturesEffect, Texture2D texture)
+    public ParticlesManager(Effect texturesEffect)
     {
         _effect = texturesEffect;
-        particleTexture = texture;
         pool.Initialize();
+    }
+
+    public void Initialize(ContentManager content)
+    {
+        sandTexture = content.Load<Texture2D>("Textures/particula_100x100");
+        smokeTexture = content.Load<Texture2D>("Textures/particle-smoke");
+        explosionTexture = content.Load<Texture2D>("Textures/particula_explosion");
     }
 
     public void GenerateSmoke(Vector3 from, Vector3 direction, float currentTime)
@@ -31,7 +39,7 @@ public class ParticlesManager
         for(int i=0; i<particleCount; i++)
         {
             var particula = pool.GetParticle(ParticlesPool.ParticleType.HUMO);
-            if(particula is SmokeParticle smoke)
+            if(particula is SmokeParticle smoke) 
                 smoke.Initialize(from, direction, currentTime);
         }
     }
@@ -75,9 +83,9 @@ public class ParticlesManager
         var max = pool.MaxParticles;
         for(int i=0; i<max; i++)
         {
-            if(pool._particulasExplosion[i].IsAlive) pool._particulasExplosion[i].Draw(View, Projection, _effect, particleTexture);
-            if(pool._particulasHumo[i].IsAlive) pool._particulasHumo[i].Draw(View, Projection, _effect, particleTexture);
-            if(pool._particulasPolvo[i].IsAlive) pool._particulasPolvo[i].Draw(View, Projection, _effect, particleTexture);
+            if(pool._particulasExplosion[i].IsAlive) pool._particulasExplosion[i].Draw(View, Projection, _effect, explosionTexture);
+            if(pool._particulasHumo[i].IsAlive) pool._particulasHumo[i].Draw(View, Projection, _effect, smokeTexture);
+            if(pool._particulasPolvo[i].IsAlive) pool._particulasPolvo[i].Draw(View, Projection, _effect, sandTexture);
         }
     }
 

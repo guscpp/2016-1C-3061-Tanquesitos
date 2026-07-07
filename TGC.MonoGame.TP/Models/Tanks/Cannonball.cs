@@ -73,18 +73,13 @@ public class Cannonball
 
     public void Update(GameTime gameTime, Simulation simulation)  
     {
-        if (_isDead)
-            return;
+        if (_isDead) return;
 
         _currentLifeTime += (float)gameTime.ElapsedGameTime.TotalSeconds;
 
-        // destruir luego de X segundos
         if (_currentLifeTime >= _lifeTime)
         {
-            simulation.Bodies.Remove(_bodyHandle);
-
             _isDead = true;
-
             return;
         }
 

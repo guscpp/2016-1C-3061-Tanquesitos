@@ -40,11 +40,12 @@ public class DinamicsManager
         0.12f,  // planta_rodadora         
     };
     private const int NumberOfAssets = 200; 
-    public List<Decoration> _dynamicDecorations = new();
+    public List<Dinamic> _dynamicDecorations = new();
     private List<Vector3> _staticDecorations;
     public List<Vector3> _houses = new();
     private Terrain _terrain;
     private readonly Random _random = new();
+    public Dictionary<BodyHandle, Dinamic> DynamicDecorationsByHandle { get; private set; } = new();
 
     public DinamicsManager(Terrain terrain, List<Vector3> staticDecorations, List<Vector3> houses)
     {
@@ -69,6 +70,7 @@ public class DinamicsManager
         foreach (var asset in _dynamicDecorations)
         {
             asset.LoadContent(content, simulation, effect);
+            DynamicDecorationsByHandle[asset.bodyHandle] = asset;
         }
     }
 
@@ -77,6 +79,7 @@ public class DinamicsManager
         foreach (var asset in _dynamicDecorations)
             if(asset is Dinamic dinamicAsset) simulation.Bodies.Remove(dinamicAsset.bodyHandle);
         _dynamicDecorations.Clear();
+        DynamicDecorationsByHandle.Clear();
         Initialize();
         LoadContent(TGCGame.Instance.Content, simulation);
     }
@@ -99,6 +102,8 @@ public class DinamicsManager
                     // Lo borro de bepu
                     simulation.Bodies.Remove(dinamicAsset.bodyHandle);
 
+                    DynamicDecorationsByHandle.Remove(dinamicAsset.bodyHandle);
+
                     //Lo borro de la lista
                     _dynamicDecorations.RemoveAt(i);
                     continue; 
@@ -110,19 +115,25 @@ public class DinamicsManager
         }
     }
 
-    public void Draw(Matrix view, Matrix projection)
+    public void Draw(Matrix view, Matrix projection, BoundingFrustum CameraFrustum)
     {
+        int totalVisible = 0;
         foreach (var asset in _dynamicDecorations)
         {
-            asset.Draw(view, projection);
+            if(CameraFrustum.Intersects(asset.BoundingBox)) {
+                asset.Draw(view, projection);
+                totalVisible++;
+            }
         }
+        //Console.WriteLine($"Dinamicos Visibles: {totalVisible} / {NumberOfAssets}");
     }
 
-    public void DrawDepth(Matrix lightViewProjection)
+    public void DrawDepth(Matrix lightViewProjection, BoundingFrustum CameraFrustum)
     {
         foreach (var asset in _dynamicDecorations)
         {
-            asset.DrawDepth(lightViewProjection);
+            if(CameraFrustum.Intersects(asset.BoundingBox))
+                asset.DrawDepth(lightViewProjection);
         }
     }
 
@@ -137,7 +148,7 @@ public class DinamicsManager
         return new Vector3(x, _terrain.GetHeight(x, z)+2, z);
     }
 
-    public Decoration GetDecoration(Vector3 position)
+    public Dinamic GetDecoration(Vector3 position)
     {
         Vector3 dynamicPos = position + Vector3.Up * GameConfig.Assets.DynamicSpawnOffset;
         Vector3 rocaPos = position + Vector3.Up * 1.5f;
@@ -149,7 +160,7 @@ public class DinamicsManager
             var p when p.Contains("planta")     => new Plant(dynamicPos, path),
             var p when p.Contains("caja")       => new WoodenBox(dynamicPos, path),
             var p when p.Contains("escaleras")  => new Stairs(dynamicPos, path),
-            _                                   => new Decoration(position, path)
+            _                                   => new Dinamic(position, path)
         };
     }
 

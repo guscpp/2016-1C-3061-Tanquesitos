@@ -14,7 +14,10 @@ namespace TGC.MonoGame.TP.Models.Decorations
         private float _height;
         private float _lenght;
 
-        public Cart(Vector3 position, string path) : base(position, path) { } //Decoration ya hace lo necesario
+        public Cart(Vector3 position, string path) : base(position, path)
+        {
+            _destructible = false;
+        } //Decoration ya hace lo necesario
         
         //CARGO EL CONTENIDO (Modificacion de la funcion en DECORATION)
         public override void LoadContent(ContentManager content, Simulation simulation, Effect effect)
@@ -54,6 +57,8 @@ namespace TGC.MonoGame.TP.Models.Decorations
         public override void Update(Simulation simulation)
         {
             if (IsDead) return;
+
+            base.Update(simulation);
 
             // Tomo la posicion actual en la simulacion
             var bodyReference = simulation.Bodies[bodyHandle];

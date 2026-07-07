@@ -15,15 +15,23 @@ public class CannonballManager
     private Effect _cannonballEffect;
     private readonly List<Cannonball> _cannonballs;
 
-    private readonly float _shootCooldown;
+    private float _shootCooldown;
+    public float ShootCooldown
+    {
+        get => _shootCooldown;
+        set => _shootCooldown = value;
+    }
     private float _currentCooldown;
     public float CurrentCooldown => _currentCooldown;
-    public bool CanFire => _currentCooldown <= 0f;
+    private Dictionary<BodyHandle, Cannonball> _cannonballsByHandle = new();
 
-    public CannonballManager(Simulation simulation, float cooldown)
+    public void ResetCooldown() => _currentCooldown = 0f;
+    public bool CanFire => _currentCooldown <= 0f || TGCGame.Instance.GameStateManager.IsGodMode;
+
+    public CannonballManager(Simulation simulation)
     {
         _simulation = simulation;
-        _shootCooldown = cooldown;
+        _shootCooldown = 0.001f; //valor que se sobreescribe segun sea s/m/h al arrancar la partida
         _currentCooldown = 0f;
         _cannonballs = new List<Cannonball>();
     }
@@ -42,22 +50,22 @@ public class CannonballManager
         }
     }
 
-    public void Fire(Vector3 spawnPosition, Vector3 direction, float damage, SoundManager soundManager, Vector3 listenerPos, Vector3 listenerForward, bool isPlayer = false)
+    public void Fire(Vector3 spawnPosition, Vector3 direction, float damage, SoundManager soundManager, Vector3 listenerPos, Vector3 listenerForward, bool isPlayer = false, float pitch =0f)
     {
         if (isPlayer && !CanFire) return;
 
         var cannonball = new Cannonball(_cannonballModel, damage, _cannonballEffect, spawnPosition, direction, _simulation);
         _cannonballs.Add(cannonball);
+        _cannonballsByHandle[cannonball.BodyHandle] = cannonball;
 
         if (isPlayer) _currentCooldown = _shootCooldown;
 
-        soundManager.PlaySound3D("cannon_fire", spawnPosition, listenerPos, listenerForward);
+        soundManager.PlaySound3D("cannon_fire", spawnPosition, listenerPos, listenerForward, pitch);
     }
 
     public Vector3 GetCannonballPosition(BodyHandle handle)
     {
-        var cb = _cannonballs.FirstOrDefault(c => c.BodyHandle == handle);
-        if (cb != null)
+        if (_cannonballsByHandle.TryGetValue(handle, out var cb))
         {
             var body = _simulation.Bodies[cb.BodyHandle];
             return new Vector3(body.Pose.Position.X, body.Pose.Position.Y, body.Pose.Position.Z);
@@ -77,7 +85,9 @@ public class CannonballManager
 
             if (cb.IsDead)
             {
-                _simulation.Bodies.Remove(cb.BodyHandle);
+                if (_simulation.Bodies.BodyExists(cb.BodyHandle)) _simulation.Bodies.Remove(cb.BodyHandle);
+
+                _cannonballsByHandle.Remove(cb.BodyHandle);
                 _cannonballs.RemoveAt(i);
             }
         }
@@ -106,12 +116,12 @@ public class CannonballManager
             _simulation.Bodies.Remove(_cannonballs[i].BodyHandle);
             _cannonballs.RemoveAt(i);
         }
+        _cannonballsByHandle.Clear();
         _currentCooldown = 0f;
     }
 
     public bool TryGetCannonball(BodyHandle handle, out Cannonball cannonball)
     {
-        cannonball = _cannonballs.FirstOrDefault(c => c.BodyHandle == handle);
-        return cannonball != null;
+        return _cannonballsByHandle.TryGetValue(handle, out cannonball);
     }
 }

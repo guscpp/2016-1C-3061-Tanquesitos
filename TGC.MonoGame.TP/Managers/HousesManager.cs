@@ -5,7 +5,9 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TGC.MonoGame.TP.Collisions;
 using TGC.MonoGame.TP.Gizmos;
+using TGC.MonoGame.TP.Models;
 using TGC.MonoGame.TP.Models.Decorations;
 using Terrain = TGC.MonoGame.TP.Models.Terrains.Terrain;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
@@ -37,10 +39,17 @@ public class HousesManager
     private Terrain _terrain;
     //Random
     private readonly Random _random = new();  
+    private GraphicsDevice _graphicsDevice;
+    // Diccionario que agrupa matrices por ruta de modelo
+    private Dictionary<string, List<Matrix>> _instancedMatrices = new();
+    // Diccionario que guarda los grupos de instanciado ya inicializados
+    private Dictionary<string, InstancedDecorationGroup> _houseGroups = new();
+    public Dictionary<StaticHandle, House> HousesByHandle { get; private set; } = new();
 
-    public HousesManager(Terrain terrain)
+    public HousesManager(Terrain terrain, GraphicsDevice graphicsDevice)
     {
         _terrain = terrain;
+        _graphicsDevice = graphicsDevice;
     }
 
     public void Initialize()
@@ -55,28 +64,68 @@ public class HousesManager
     public void LoadContent(ContentManager content, Simulation simulation)
     {
         var effect = content.Load<Effect>(ContentFolderEffects + "ShadowMap");
+        var sharedTexture = content.Load<Texture2D>("Textures/paleta_256x512");
 
         foreach (var house in _houses)
         {
             house.LoadContent(content, simulation, effect);
+            HousesByHandle[house.StaticHandle] = house;
+            string modelPath = house.ModelPath; // Asegúrate de tener esta propiedad
+            if (!_instancedMatrices.ContainsKey(modelPath))
+                _instancedMatrices[modelPath] = new List<Matrix>();
+                
+            _instancedMatrices[modelPath].Add(house.WorldMatrix);
+        }
+        foreach (var entry in _instancedMatrices)
+        {
+            var model = content.Load<Model>(ContentFolder3D + entry.Key);
+            _houseGroups[entry.Key] = new InstancedDecorationGroup(model, 0.6f, entry.Value, _graphicsDevice, sharedTexture, effect);
         }
     }
 
-    public void Update() { }
+    public void Update(BoundingFrustum CameraFrustum, Gizmo gizmos, Simulation simulation) 
+    { 
+        var visibleModels = new Dictionary<string, List<Matrix>>();
+        foreach(var house in _houses)
+        {
+            var houseBoundingBox = house.BoundingBox;
+            if(CameraFrustum.Intersects(houseBoundingBox))
+            {
+                if (!visibleModels.TryGetValue(house.ModelPath, out var list))
+                {
+                    list = new List<Matrix>();
+                    visibleModels[house.ModelPath] = list;
+                }
+                list.Add(house.WorldMatrix);
+                //house.DrawCollisionChamber(gizmos, simulation);
+            }
+        }
+        // se actualiza con las instancias visibles
+        foreach (var group in _houseGroups)
+        {
+            if (visibleModels.TryGetValue(group.Key, out var visibleMatrices))
+                group.Value.SetVisibleInstances(visibleMatrices);
+            else
+                group.Value.SetVisibleInstances(new List<Matrix>()); // nada visible de ese modelo
+        }
+        int totalVisible = visibleModels.Values.Sum(l => l.Count);
+        //Console.WriteLine($"Casas Visibles: {totalVisible} / {_houses.Count}");
+    }
 
     public void Draw(Matrix view, Matrix projection)
     {
-        foreach (var house in _houses)
+        foreach (var group in _houseGroups.Values)
         {
-            house.Draw(view, projection);
+            // El grupo sabe cómo dibujar todas sus instancias eficientemente
+            group.Draw(view, projection);
         }
     }
 
     public void DrawDepth(Matrix lightViewProjection)
     {
-        foreach (var house in _houses)
+        foreach (var group in _houseGroups.Values)
         {
-            house.DrawDepth(lightViewProjection);
+            group.DrawDepth(lightViewProjection);
         }
     }
 

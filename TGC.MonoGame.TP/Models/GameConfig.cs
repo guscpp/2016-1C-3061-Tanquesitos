@@ -30,14 +30,16 @@ public static class GameConfig
     {
         public static class Scout
         {
-            public const float MaxSpeed = 120f;      // m/s
-            public const float MotorForce = 160000f; //
-            public const float TurnSpeed = 1.5f;     //
-            public const float AttackDamage = 0.8f;  //
+            public const float MaxSpeed = 120f;       // m/s
+            public const float MotorForce = 160000f;  //
+            public const float TurnSpeed = 1.5f;      //
+            public const float AttackDamage = 0.8f;   //
+            public const float CannonPitch = 1.00f;   // adimensional, modifica el tono hacia agudo
+            public const float Cooldown = 0.5f;       // segundo
 
             // HPs segun sea Scout player o Scout NPC
             public const float PlayerHealth = 15f;
-            public const float EnemyHealth = 2f;
+            public const float EnemyHealth = 4f;
         }
 
         public static class Medium
@@ -47,10 +49,12 @@ public static class GameConfig
             public const float MotorForce = 150000f; //
             public const float TurnSpeed = 1.2f;     //
             public const float AttackDamage = 1f;
+            public const float CannonPitch = 0.0f;   // adimensional, no modifica el tono
+            public const float Cooldown = 0.75f;      // segundo
 
             // HPs segun sea Medium player o Medium NPC
             public const float PlayerHealth = 20f;
-            public const float EnemyHealth = 3f;
+            public const float EnemyHealth = 6f;
         }
 
         public static class Heavy
@@ -60,10 +64,12 @@ public static class GameConfig
             public const float MotorForce = 130000f;  //
             public const float TurnSpeed = 0.9f;      //
             public const float AttackDamage = 2.0f;
+            public const float CannonPitch = -1.00f;  // adimensional, modifica el tono hacia grave
+            public const float Cooldown = 1.5f;       // segundo
 
             // HPs segun sea Heavy player o Heavy NPC
             public const float PlayerHealth = 30f;
-            public const float EnemyHealth = 4f;
+            public const float EnemyHealth = 8f;
         }
     }
 
@@ -84,12 +90,11 @@ public static class GameConfig
         public const float SpawnZMargin = 7f;   // metros, el tanque spawnea esta altura por encima del terreno
         public const float MaxFuel = 100f;              // litros
         public const float FuelConsumptionRate = 1f;    // litros
-        public const float Cooldown = 0.5f;             // segundos
         public const float AngularVelocityClampX = 0.5f;    // radianes/segundo
         public const float AngularVelocityClampZ = 0.3f;    // radianes/segundo
         public const float AngularDampingXZ = 0.88f;        // adimensional
         public const float AngularDampingY = 0.98f;         // adimensional
-        public const float VisualOffsetY = -0.2f;           // metros
+        public const float VisualOffsetY = -0.35f;          // metros
 
         public const float CannonMuzzleOffsetY = 1.5f;  // metros
         public const float CannonMuzzleOffsetZ = 2.0f;  // metros
@@ -101,7 +106,7 @@ public static class GameConfig
         public const float ImpactRadius = 0.65f; // metros, radio de deformacion por impacto
         public const float ImpactDepth = 0.3f;   // metros
 
-        public static string TankModelPath = "tanques/tank v6";
+        public static string TankModelPath = "tanques/tank v7";
         public static string TankTracksTexture = "tracks_3_252525";
 
         public static class Stabilizer
@@ -164,15 +169,39 @@ public static class GameConfig
     // CAMARA
     public static class Camera
     {
-        public const float DefaultDistance = 10f;
-        public const float HeightOffset = 6f;
-        public const float MinDistance = 4f;
-        public const float MaxDistance = 25f;
-        public const float ZoomSensitivity = 1.5f;
-        public const float Smoothness = 10f;
-        public const float LookAtHeight = 2.5f;
-        public const float NearPlaneDist = 0.5f;
-        public const float FarPlaneDist = 250;
+        // --- DISTANCIAS Y POSICION ---
+        public const float DefaultDistance = 10f;           // metros, distancia inicial de la camara al tanque
+        public const float MinDistance = 1.5f;              // metros, zoom maximo (vista comandante)
+        public const float MaxDistance = 15f;               // metros, zoom mínimo (vista mas lejana)
+
+        // --- ALTURA DE LA CAMARA ---
+        public const float DefaultHeightOffset = 4.5f;      // metros, altura sobre el tanque en vista normal
+        public const float HatchHeightOffset = 2.4f;        // metros, altura en modo escotilla (comandante)
+
+        public const float HatchPositionForwardOffset = 0.4f; // metros, poner la camara adelantada hacia el canon
+        public const float ElevationAngle = 20f;            // grados, sobre el horizonte
+
+        // --- PUNTO DE MIRA (LOOK AT) ---
+        public const float DefaultLookAtHeight = 3.0f;      // metros, altura a la que mira en vista normal
+        public const float HatchLookAtForward = 3.5f;       // metros, desplazamiento hacia adelante en modo escotilla
+
+        // --- TRANSICION A MODO ESCOTILLA ---
+        public const float HatchTransitionDistance = 4.0f;  // metros, umbral donde empieza la transicion a escotilla
+
+        // --- ZOOM Y SUAVIZADO ---
+        public const float ZoomSensitivity = 1.5f;          // metros/scroll, sensibilidad de la rueda del mouse
+        public const float Smoothness = 10f;                // 1/segundos, factor de suavizado del movimiento (Lerp)
+
+        // --- PROYECCION ---
+        public const float NearPlaneDist = 0.05f;           // metros, plano de corte cercano (evita clipping del canon)
+        public const float FarPlaneDist = 750f;             // metros, plano de corte lejano
+
+        // --- EFECTOS ---
+        public const float ShakeIntensity = 1.025f;         // metros, amplitud del camera-shake al recibir daño
+        public const float ShakeDuration = 0.100f;          // segundos, duracion del camera-shake
+
+        // --- LIMITES ---
+        public const float TerrainClampOffset = 2.0f;       // metros, altura minima de la cámara sobre el terreno
     }
 
     // ASSETS (CASAS, DECORACIONES)

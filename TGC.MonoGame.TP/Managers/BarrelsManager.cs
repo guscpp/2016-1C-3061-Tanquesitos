@@ -27,6 +27,7 @@ public class BarrelsManager
 
     private Terrain _terrain;
     private readonly Random _random = new();
+    private List<Vector3> _barrelsPositionCache = new List<Vector3>(GameConfig.FuelBarrel.SpawnCount);
 
     public BarrelsManager(Terrain terrain, List<Vector3> decorationModels, List<Vector3> houses)
     {
@@ -101,19 +102,21 @@ public class BarrelsManager
         }
     }
 
-    public void Draw(Matrix view, Matrix projection, Gizmo gizmos, Simulation simulation)
+    public void Draw(Matrix view, Matrix projection, Gizmo gizmos, Simulation simulation, BoundingFrustum CameraFrustum)
     {
+        int totalVisible = 0;
         foreach (var barrel in _fuelBarrels)
         {
-            if (!barrel.IsCollected) barrel.Draw(view, projection);
+            if (!barrel.IsCollected && CameraFrustum.Intersects(barrel.BoundingBox)) {barrel.Draw(view, projection); totalVisible++;}
         }
+        //Console.WriteLine($"Casas Visibles: {totalVisible} / {_fuelBarrels.Count}");
     }
 
-    public void DrawDepth(Matrix lightViewProjection)
+    public void DrawDepth(Matrix lightViewProjection, BoundingFrustum CameraFrustum)
     {
         foreach (var barrel in _fuelBarrels)
         {
-            if (!barrel.IsCollected) barrel.DrawDepth(lightViewProjection);
+            if (!barrel.IsCollected && CameraFrustum.Intersects(barrel.BoundingBox)) barrel.DrawDepth(lightViewProjection);
         }
     }
 
@@ -130,10 +133,10 @@ public class BarrelsManager
 
     public List<Vector3> GetBarrelsPositions()
     {
-        var positions = new List<Vector3>();
+        _barrelsPositionCache.Clear();
         foreach(var barrel in _fuelBarrels)
-            if(!barrel.IsCollected) positions.Add(barrel.Position);
-        return positions;
+            if(!barrel.IsCollected) _barrelsPositionCache.Add(barrel.Position);
+        return _barrelsPositionCache;
     }
 
     private bool IsTooNearToAHouse(Vector3 position, float minDistance)

@@ -23,12 +23,15 @@ public class Decoration
     protected float _visualScale;
     protected string _path;
     protected BoundingBox _boundingBox; //la cajita xd
+    protected BoundingBox _worldBoundingBox; //caja transformada a espacio mundo, la que se usa para frustum culling
+    public BoundingBox BoundingBox => _worldBoundingBox;
     protected Vector3 _dimensions; //guarda el ancho, alto y largo del modelo
     protected Vector3 _modelCenter; //ubicacion del pivote
 
     protected Effect _effect;
 
     public Vector3 Position => _position; //Es la variable de solo lectura de la posicion
+    private static readonly Vector3[] _cornersCache = new Vector3[8];
 
     protected float _normalOffsetScale;
 
@@ -60,9 +63,8 @@ public class Decoration
         _boundingBox = BoundingVolumesUtils.CreateBoundingBox(_model);
         _dimensions = _boundingBox.Max - _boundingBox.Min; //tomo el punto maximo y el punto minimo de mi caja y luego calculo la diferencia para saber la distancia, se usa el Min porque el modelo puede estar un poquito mal posicionado y no lo voy andar corrigiendo 80 veces en blender, ya lo intente
         _modelCenter = (_boundingBox.Max + _boundingBox.Min) / 2f; //ajustamos el pivote que originalmente esta en los pies del modelo visual para que concuerde con el del modelo fisico que es en el centro
-        var objectSize = Math.Max(_dimensions.X, Math.Max(_dimensions.Y, _dimensions.Z));
-        _normalOffsetScale = MathHelper.Clamp(objectSize * 0.02f, 0.03f, 0.6f);
         //_normalOffsetScale = 0.02f;
+        _worldBoundingBox = _boundingBox;
     }
 
     //ACTUALIZO (Modificable)
@@ -70,6 +72,16 @@ public class Decoration
 
     //DIBUJO LAS COLISIONES (Modificable)
     public virtual void DrawCollisionChamber(Gizmo gizmos, Simulation simulation) {}
+
+    protected void RecalculateWorldBoundingBox()
+    {
+        _boundingBox.GetCorners(_cornersCache); //genera los 8 vertices de la caja local
+        for (int i = 0; i < _cornersCache.Length; i++)
+        {
+            _cornersCache[i] = Vector3.Transform(_cornersCache[i], _world);
+        }
+        _worldBoundingBox = BoundingBox.CreateFromPoints(_cornersCache);
+    }
 
     //DIBUJO (Modificable)
     public virtual void Draw(Matrix view, Matrix projection)

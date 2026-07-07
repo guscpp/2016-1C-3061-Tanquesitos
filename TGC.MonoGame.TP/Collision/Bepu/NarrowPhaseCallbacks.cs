@@ -63,35 +63,28 @@ public struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
         pairMaterial.MaximumRecoveryVelocity = MaximumRecoveryVelocity;
         pairMaterial.SpringSettings = ContactSpringiness;
 
-        // Si hay contacto, reviso si los dos elementos que hicieron contacto son dinamicos, si uno no lo es entonces no me interesa lo que ocurra
+        // =========================================================================
+        // 1. COLISIÓN DINÁMICA vs DINÁMICA (Tanque/Bala vs Objetos/Enemigos)
+        // =========================================================================
         if (pair.A.Mobility == CollidableMobility.Dynamic && pair.B.Mobility == CollidableMobility.Dynamic)
-        { //Si ambos lo son actuamos yeii
-            // Agarro el bodyHandle de cada elemento
+        {
             BodyHandle handleA = pair.A.BodyHandle;
             BodyHandle handleB = pair.B.BodyHandle;
-
-            // Agarro el bodyHanldle del tanque para comparar
             BodyHandle tankHandle = TGCGame.Instance._tank.TankHandler;
 
-            // Reviso si alguna de las dos partes es el tanque
+            // --- A. Tanque vs Objetos Dinámicos ---
             if (handleA == tankHandle || handleB == tankHandle)
             {
-                // Identifico el obstaculo
                 BodyHandle obstacleHandle = (handleA == tankHandle) ? handleB : handleA;
 
-                // Reviso la lista de decoraciones del AssetsManager
-                var objetoChocado = TGCGame.Instance._dinamicsManager._dynamicDecorations
-                    .OfType<Dinamic>() //Tomo solo los dinamicos
-                    .FirstOrDefault(d => d.bodyHandle == obstacleHandle); //El objeto de la lista debe ser el chocado
-
-                // Si lo encontre y el objeto vive lo mando a matar
-                if (objetoChocado != null && !objetoChocado.IsDead)
+                // ✅ BÚSQUEDA O(1) SIN LINQ
+                if (TGCGame.Instance._dinamicsManager.DynamicDecorationsByHandle.TryGetValue(obstacleHandle, out var objetoChocado))
                 {
-                    objetoChocado.HandleCollision(); //Aca lo declaro muerto
+                    if (!objetoChocado.IsDead && objetoChocado.esDestruible) objetoChocado.HandleCollision();
                 }
             }
 
-            // Buscar si alguno de los handles pertenece a una bala
+            // --- B. Lógica de Balas (Cannonball) ---
             Cannonball cannonball = null;
             if (TGCGame.Instance.CannonballManager.TryGetCannonball(handleA, out var cbA)) cannonball = cbA;
             else if (TGCGame.Instance.CannonballManager.TryGetCannonball(handleB, out var cbB)) cannonball = cbB;
@@ -100,97 +93,97 @@ public struct NarrowPhaseCallbacks : INarrowPhaseCallbacks
             {
                 BodyHandle obstacleHandle = (cannonball.BodyHandle == handleA) ? handleB : handleA;
 
-                if(handleA == tankHandle || handleB == tankHandle && !cannonball.IsDead)
+                // Bala vs Tanque
+                if ((handleA == tankHandle || handleB == tankHandle) && !cannonball.IsDead)
                 {
                     Vector3 bulletPos = TGCGame.Instance.CannonballManager.GetCannonballPosition(cannonball.BodyHandle).ToNumerics();
                     TGCGame.Instance._tank.HandleHealth(cannonball.AttackDamage, bulletPos);
                     cannonball.killCannonball();
                 }
 
-                var objetoChocado = TGCGame.Instance._dinamicsManager._dynamicDecorations.OfType<Dinamic>().FirstOrDefault(d => d.bodyHandle == obstacleHandle);
-
-                if (objetoChocado != null && !objetoChocado.IsDead && !cannonball.IsDead)
+                // Bala vs Objetos Dinámicos
+                // ✅ BÚSQUEDA O(1) SIN LINQ
+                if (TGCGame.Instance._dinamicsManager.DynamicDecorationsByHandle.TryGetValue(obstacleHandle, out var objetoChocadoBala))
                 {
-                    objetoChocado.HandleCollision();
-                    cannonball.killCannonball();
+                    if (!objetoChocadoBala.IsDead && objetoChocadoBala.esDestruible && !cannonball.IsDead)
+                    {
+                        objetoChocadoBala.HandleCollision();
+                        cannonball.killCannonball();
+                    }
                 }
 
-                // Reviso si se impacto a un enemigo
-                var enemyChocado = TGCGame.Instance._enemiesManager._enemies.FirstOrDefault(e => e.TankHandler == obstacleHandle);
-                if(enemyChocado != null && !enemyChocado.IsDead && !cannonball.IsDead)
+                // Bala vs Enemigos
+                // ✅ BÚSQUEDA O(1) SIN LINQ
+                if (TGCGame.Instance._enemiesManager.EnemiesByHandle.TryGetValue(obstacleHandle, out var enemyChocado))
                 {
-                    var bulletPos = TGCGame.Instance.CannonballManager.GetCannonballPosition(cannonball.BodyHandle);
-                    enemyChocado.HandleHealth(cannonball.AttackDamage, bulletPos);
-                    cannonball.killCannonball();
-                }              
+                    if (!enemyChocado.IsDead && !cannonball.IsDead)
+                    {
+                        var bulletPos = TGCGame.Instance.CannonballManager.GetCannonballPosition(cannonball.BodyHandle);
+                        enemyChocado.HandleHealth(cannonball.AttackDamage, bulletPos);
+                        cannonball.killCannonball();
+                    }
+                }
             }
-
         }
 
-        // COLISIONES: Tanque (Dinamico) vs Objetos Estaticos (casas, arboles, rocas)
+        // =========================================================================
+        // 2. COLISIÓN DINÁMICA vs ESTÁTICA (Sonidos de impacto)
+        // =========================================================================
         if ((pair.A.Mobility == CollidableMobility.Dynamic && pair.B.Mobility == CollidableMobility.Static) ||
             (pair.B.Mobility == CollidableMobility.Dynamic && pair.A.Mobility == CollidableMobility.Static))
         {
             BodyHandle dynamicHandle = pair.A.Mobility == CollidableMobility.Dynamic ? pair.A.BodyHandle : pair.B.BodyHandle;
             StaticHandle staticHandle = pair.A.Mobility == CollidableMobility.Static ? pair.A.StaticHandle : pair.B.StaticHandle;
 
-            //Ignorar el terreno para que no contamine los flags del tracker
             if (staticHandle == TGCGame.Instance.TerrainHandle)
             {
-                // No hacemos nada con el tracker, pero dejamos que el codigo siga por si es una bala
+                // Ignorar terreno para no ensuciar el tracker de sonidos
             }
-            //Solo evaluar si el dinamico es el tanque del jugador
             else if (dynamicHandle == TGCGame.Instance._tank.TankHandler)
             {
                 TGCGame.Instance.CollisionTracker.TryPlay(() =>
                 {
-                    bool isHouse = TGCGame.Instance._housesManager._houses.Any(h => h.StaticHandle == staticHandle);
-                    if (isHouse)
+                    // ✅ BÚSQUEDA O(1) PARA CASAS
+                    if (TGCGame.Instance._housesManager.HousesByHandle.ContainsKey(staticHandle))
                     {
                         TGCGame.Instance.SoundManager.PlaySound("colision_casa");
-                        return true; // Retornar true para consumir el flag
-                    }
-
-                    bool isTree = TGCGame.Instance._staticsManager._decorationModels.OfType<Tree>().Any(t => t.StaticHandle == staticHandle);
-                    if (isTree)
-                    {
-                        TGCGame.Instance.SoundManager.PlaySound("golpear_arbol");
                         return true;
                     }
 
-                    bool isRock = TGCGame.Instance._staticsManager._decorationModels.OfType<Rock>().Any(r => r.StaticHandle == staticHandle);
-                    if (isRock)
+                    // ✅ BÚSQUEDA O(1) + PATTERN MATCHING PARA DECORACIÓN ESTÁTICA
+                    // Esto reemplaza los 3 "OfType<T>().Any()" que tenías antes
+                    if (TGCGame.Instance._staticsManager.StaticsByHandle.TryGetValue(staticHandle, out var staticObj))
                     {
-                        TGCGame.Instance.SoundManager.PlaySound("golpear_roca");
-                        return true;
+                        if (staticObj is Tree || staticObj is Cactus)
+                        {
+                            TGCGame.Instance.SoundManager.PlaySound("golpear_arbol");
+                            return true;
+                        }
+                        if (staticObj is Rock)
+                        {
+                            TGCGame.Instance.SoundManager.PlaySound("golpear_roca");
+                            return true;
+                        }
                     }
-
-                    bool isCactus = TGCGame.Instance._staticsManager._decorationModels.OfType<Cactus>().Any(c => c.StaticHandle == staticHandle);
-                    if (isCactus)
-                    {
-                        TGCGame.Instance.SoundManager.PlaySound("golpear_arbol");
-                        return true;
-                    }
-
-                    return false; // No es un objeto que nos interese, NO consumir el flag
+                    return false;
                 });
             }
         }
 
+        // =========================================================================
+        // 3. BALA vs TERRENO (Estático)
+        // =========================================================================
         if (pair.A.Mobility == CollidableMobility.Static || pair.B.Mobility == CollidableMobility.Static)
         {
-            // si la bala colisiono con el suelo, debe desaparecer
-            // chequeo que uno de los dos sea estatico (terreno) y el otro dinamico (bala)
             var terreno = TGCGame.Instance.TerrainHandle;
             Cannonball cannonball = null;
+
             if (pair.A.Mobility == CollidableMobility.Static && pair.A.StaticHandle == terreno)
                 TGCGame.Instance.CannonballManager.TryGetCannonball(pair.B.BodyHandle, out cannonball);
-
             if (pair.B.Mobility == CollidableMobility.Static && pair.B.StaticHandle == terreno)
                 TGCGame.Instance.CannonballManager.TryGetCannonball(pair.A.BodyHandle, out cannonball);
 
             if (cannonball != null) cannonball.killCannonball();
-
         }
 
         return true;

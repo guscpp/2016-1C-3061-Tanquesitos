@@ -12,7 +12,7 @@ public class TankEnemyScout : TankEnemy
         force: GameConfig.TankClasses.Scout.MotorForce,
         turnSpeed: GameConfig.TankClasses.Scout.TurnSpeed,
         damage: GameConfig.TankClasses.Scout.AttackDamage,
-        cooldown: GameConfig.Enemies.Cooldown)
+        cooldown: GameConfig.TankClasses.Scout.Cooldown)
     { }
 }
 
@@ -26,7 +26,7 @@ public class TankEnemyMedium : TankEnemy
         force: GameConfig.TankClasses.Medium.MotorForce,
         turnSpeed: GameConfig.TankClasses.Medium.TurnSpeed,
         damage: GameConfig.TankClasses.Medium.AttackDamage,
-        cooldown: GameConfig.Enemies.Cooldown)
+        cooldown: GameConfig.TankClasses.Medium.Cooldown)
     { }
 }
 
@@ -40,6 +40,6 @@ public class TankEnemyHeavy : TankEnemy
         force: GameConfig.TankClasses.Heavy.MotorForce,
         turnSpeed: GameConfig.TankClasses.Heavy.TurnSpeed,
         damage: GameConfig.TankClasses.Heavy.AttackDamage,
-        cooldown: GameConfig.Enemies.Cooldown)
+        cooldown: GameConfig.TankClasses.Heavy.Cooldown)
     { }
 }

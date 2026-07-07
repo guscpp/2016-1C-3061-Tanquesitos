@@ -13,6 +13,9 @@ namespace TGC.MonoGame.TP.Models.Decorations
         public BodyHandle bodyHandle { get; protected set; }
         public bool IsDead { get; protected set; } = false;
 
+        protected bool _destructible;
+        public bool  esDestruible => _destructible;
+
         public Dinamic(Vector3 position, string path) : base(position, path) { }
 
         //CARGO EL CONTENIDO (Modificacion de la funcion en DECORATION)
@@ -25,6 +28,7 @@ namespace TGC.MonoGame.TP.Models.Decorations
         public override void Update(Simulation simulation)
         {
             base.Update(simulation);
+            RecalculateWorldBoundingBox();
         }
 
         //DIBUJO EL MODELO (Modificacion de la funcion en DECORATION)

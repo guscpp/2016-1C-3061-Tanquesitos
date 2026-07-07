@@ -5,8 +5,10 @@ using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using TGC.MonoGame.TP.Gizmos;
+using TGC.MonoGame.TP.Models;
 using TGC.MonoGame.TP.Models.Decorations;
+using TGC.MonoGame.TP.Collisions;
+using Static = TGC.MonoGame.TP.Models.Decorations.Static;
 using Terrain = TGC.MonoGame.TP.Models.Terrains.Terrain;
 using Vector3 = Microsoft.Xna.Framework.Vector3;
 
@@ -48,13 +50,21 @@ public class StaticsManager
     };
     private const int NumberOfAssets = 200; 
     private int NumberOfDecorations => NumberOfAssets - 15;
-    public List<Decoration> _decorationModels = new();
+    public List<Static> _decorationModels = new();
     public List<Vector3> _houses = new();
     private Terrain _terrain;
     private readonly Random _random = new();  
+    private GraphicsDevice _graphicsDevice;
+    
+    // Diccionario que agrupa matrices por ruta de modelo
+    private Dictionary<string, List<Matrix>> _instancedMatrices = new();
+    // Diccionario que guarda los grupos de instanciado ya inicializados
+    private Dictionary<string, InstancedDecorationGroup> _decorationGroups = new();
+    public Dictionary<StaticHandle, Static> StaticsByHandle { get; private set; } = new();
 
-    public StaticsManager(Terrain terrain, List<Vector3> houses)
+    public StaticsManager(Terrain terrain, List<Vector3> houses, GraphicsDevice graphicsDevice)
     {
+        _graphicsDevice = graphicsDevice;
         _terrain = terrain;
         _houses = houses;
     }
@@ -71,28 +81,78 @@ public class StaticsManager
     public void LoadContent(ContentManager content, Simulation simulation)
     {
         var effect = content.Load<Effect>(ContentFolderEffects + "ShadowMap");
+        var sharedTexture = content.Load<Texture2D>("Textures/paleta_256x512");
 
         foreach (var asset in _decorationModels)
         {
             asset.LoadContent(content, simulation, effect);
+            StaticsByHandle[asset.StaticHandle] = asset;
+            
+            string modelPath = asset.ModelPath;
+            if (!_instancedMatrices.ContainsKey(modelPath))
+                _instancedMatrices[modelPath] = new List<Matrix>();
+                
+            _instancedMatrices[modelPath].Add(asset.WorldMatrix);
+        }
+
+        foreach (var entry in _instancedMatrices)
+        {
+            var model = content.Load<Model>(ContentFolder3D + entry.Key);
+            var normalOffset = CalculateNormalOffsetScale(model);
+            _decorationGroups[entry.Key] = new InstancedDecorationGroup(model, normalOffset, entry.Value, _graphicsDevice, sharedTexture, effect);
         }
     }
 
-    public void Update() { }
+    private float CalculateNormalOffsetScale(Model model)
+    {
+        var bbox = BoundingVolumesUtils.CreateBoundingBox(model);
+        var dimensions = bbox.Max - bbox.Min;
+        var objectSize = Math.Max(dimensions.X, Math.Max(dimensions.Y, dimensions.Z));
+        return MathHelper.Clamp(objectSize * 0.02f, 0.03f, 0.6f);
+    }
+
+    public void Update(BoundingFrustum CameraFrustum)
+    {
+        var visibleModels = new Dictionary<string, List<Matrix>>();
+        foreach(var staticDecoration in _decorationModels)
+        {
+            var boundingBox = staticDecoration.BoundingBox;
+            if(CameraFrustum.Intersects(boundingBox))
+            {
+                if (!visibleModels.TryGetValue(staticDecoration.ModelPath, out var list))
+                {
+                    list = new List<Matrix>();
+                    visibleModels[staticDecoration.ModelPath] = list;
+                }
+                list.Add(staticDecoration.WorldMatrix);
+            }
+        }
+        // se actualiza con las instancias visibles
+        foreach (var group in _decorationGroups)
+        {
+            if (visibleModels.TryGetValue(group.Key, out var visibleMatrices))
+                group.Value.SetVisibleInstances(visibleMatrices);
+            else
+                group.Value.SetVisibleInstances(new List<Matrix>()); // nada visible de ese modelo
+        }
+
+        int totalVisible = visibleModels.Values.Sum(l => l.Count);
+        //Console.WriteLine($"Estaticos Visibles: {totalVisible} / {_decorationModels.Count}");
+    }
 
     public void Draw(Matrix view, Matrix projection)
     {
-        foreach (var asset in _decorationModels)
+        foreach (var group in _decorationGroups.Values)
         {
-            asset.Draw(view, projection);
+            group.Draw(view, projection);
         }
     }
 
     public void DrawDepth(Matrix lightViewProjection)
     {
-        foreach (var asset in _decorationModels)
+        foreach (var group in _decorationGroups.Values)
         {
-            asset.DrawDepth(lightViewProjection);
+            group.DrawDepth(lightViewProjection);
         }
     }
 
@@ -107,7 +167,7 @@ public class StaticsManager
         return new Vector3(x, _terrain.GetHeight(x, z), z);
     }
 
-    public Decoration GetDecoration(Vector3 position)
+    public Static GetDecoration(Vector3 position)
     {
         _ = position + Vector3.Up * GameConfig.Assets.DynamicSpawnOffset;
         Vector3 rocaPos = position + Vector3.Up * 1.0f;
@@ -118,7 +178,7 @@ public class StaticsManager
             var p when p.Contains("cactus")     => new Cactus(position, path),
             var p when p.Contains("roca")       => new Rock(rocaPos, path),
             var p when p.Contains("pozo")       => new Pozo(position, path),
-            _                                   => new Decoration(position, path)
+            _                                   => new Static(position, path)
         };
     }
 

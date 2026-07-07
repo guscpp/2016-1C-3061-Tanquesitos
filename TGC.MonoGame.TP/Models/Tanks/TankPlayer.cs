@@ -2,6 +2,7 @@
 using Microsoft.Xna.Framework.Input;
 using Microsoft.Xna.Framework.Graphics;
 using BepuPhysics;
+using System.Runtime.Serialization.DataContracts;
 
 namespace TGC.MonoGame.TP.Models.Tanks;
 
@@ -53,6 +54,16 @@ public class TankPlayer : TankBase
         CurrentFuel = GameConfig.Tank.MaxFuel;
     }
 
+    public override void HandleHealth(float damage, Vector3 impactPointWorld)
+    {
+        //if (TGCGame.Instance.GameStateManager.IsGodMode) return;
+
+        if (damage > 0 && !IsDead)
+            TGCGame.Instance.Camera.Shake(GameConfig.Camera.ShakeIntensity, GameConfig.Camera.ShakeDuration);
+
+        base.HandleHealth(damage, impactPointWorld);
+    }
+
     public void AddFuel(float amount) => CurrentFuel = MathHelper.Clamp(CurrentFuel + amount, 0f, GameConfig.Tank.MaxFuel);
 
     public void Update(GameTime gameTime, KeyboardState keyboard, Simulation simulation)
@@ -63,12 +74,13 @@ public class TankPlayer : TankBase
         if (keyboard.IsKeyDown(Keys.W)) forwardInput += 1f;
         if (keyboard.IsKeyDown(Keys.S)) forwardInput -= 1f;
 
-        if (CurrentFuel <= 0f)
+        if (CurrentFuel <= 0f && !TGCGame.Instance.GameStateManager.IsGodMode)
         {
             forwardInput = 0f;
             IsDead = true;
         }
-        else if (forwardInput != 0f) CurrentFuel -= GameConfig.Tank.FuelConsumptionRate * dt;
+        else if (forwardInput != 0f && !TGCGame.Instance.GameStateManager.IsGodMode)
+            CurrentFuel -= GameConfig.Tank.FuelConsumptionRate * dt;
         CurrentFuel = MathHelper.Clamp(CurrentFuel, 0f, GameConfig.Tank.MaxFuel);
 
         float turnInput = 0f;
@@ -99,5 +111,8 @@ public class TankPlayer : TankBase
             TGCGame.Instance.ParticlesManager.GenerateDust(dustSpawnPos, ChassisRight, (float)gameTime.TotalGameTime.TotalSeconds);
             TGCGame.Instance.ParticlesManager.GenerateDust(dustSpawnPos2, ChassisRight, (float)gameTime.TotalGameTime.TotalSeconds);
         }
+        RecalculateMatrices();
+
+        RecalculateWorldBoundingBox();
     }
 }

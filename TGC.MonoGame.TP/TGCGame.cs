@@ -48,8 +48,10 @@ public class TGCGame : Game
     private MouseState _previousMouseState;
     //hud
     private Hud _hud;
+    public Hud Hud => _hud;
     //gamestate
     private GameStateManager _gameStateManager;
+    public GameStateManager GameStateManager => _gameStateManager;
     //-----------TANQUE
     public TankPlayer _tank;
     private TankFollowCamera _camera;
@@ -58,6 +60,7 @@ public class TGCGame : Game
     private Terrain _terrain;
     private Wall _wall;
     public StaticHandle TerrainHandle => _terrainStaticHandle;
+    public Skybox _skybox;
     //-----------Manager
     public HousesManager _housesManager;
     public StaticsManager _staticsManager;
@@ -88,6 +91,12 @@ public class TGCGame : Game
     public int EnemiesKilled = 0;
     public GameTime time { get; private set; }
 
+    public Gizmo Gizmos => _gizmos;
+
+    // ------Optimizacion
+    private BoundingFrustum _cameraFrustum; // frustum de la camara para hacer frustum culling
+    public BoundingFrustum CameraFrustum => _cameraFrustum;
+
     public TGCGame()
     {
         _graphics = new GraphicsDeviceManager(this);
@@ -95,6 +104,7 @@ public class TGCGame : Game
         Window.Title = "Tanquesitos";
         _graphics.PreferredBackBufferWidth = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Width - 100;
         _graphics.PreferredBackBufferHeight = GraphicsAdapter.DefaultAdapter.CurrentDisplayMode.Height - 100;
+        _graphics.HardwareModeSwitch = false;
         Content.RootDirectory = "Content";
         IsMouseVisible = true; //Oculto el mouse porque da dolor de cabeza
     }
@@ -129,10 +139,11 @@ public class TGCGame : Game
         var terrainTexture = Content.Load<Texture2D>("Models/heightmaps/heightmap_512x512");
         var groundTexture = Content.Load<Texture2D>(ContentFolderTextures + "sand_1024_seamless");
         var tankTexture = Content.Load<Texture2D>(ContentFolderTextures + "paleta_256x512");
+        var parTexture = Content.Load<Texture2D>(ContentFolderTextures + "particle-smoke");
         var tracksTexture = Content.Load<Texture2D>(ContentFolderTextures + GameConfig.Tank.TankTracksTexture);
 
         //CannonballManager
-        _cannonballManager = new CannonballManager(_simulation, GameConfig.Tank.Cooldown);
+        _cannonballManager = new CannonballManager(_simulation);
         _cannonballManager.LoadContent(Content, ContentFolder3D + "cannonball/cannonball", ContentFolderEffects + "ShadowMap");
 
         //AUXILIARES
@@ -164,11 +175,11 @@ public class TGCGame : Game
 
         //ASSETS DECORATIVOS
         //casas
-        _housesManager = new HousesManager(_terrain);
+        _housesManager = new HousesManager(_terrain, GraphicsDevice);
         _housesManager.Initialize();
         _housesManager.LoadContent(Content, _simulation);
         //estaticos
-        _staticsManager = new StaticsManager(_terrain, _housesManager.getHouses());
+        _staticsManager = new StaticsManager(_terrain, _housesManager.getHouses(), GraphicsDevice);
         _staticsManager.Initialize();
         _staticsManager.LoadContent(Content, _simulation);
         //dinamicos
@@ -185,9 +196,13 @@ public class TGCGame : Game
         _barrelsManager.Initialize();
         _barrelsManager.LoadContent(Content, _simulation);
 
+        //SKYBOX
+        _skybox = new Skybox(GraphicsDevice);
+        _skybox.LoadContent(Content);
+
         //TANQUE
         var kb = Keyboard.GetState();
-        _gameStateManager.HandleMenuState();
+        _gameStateManager.HandleMenuState(kb, _lastKeyboardState);
         _lastKeyboardState = kb;
         // Crear el tanque usando la eleccion del jugador
         _tank = new TankPlayer(GraphicsDevice, SelectedPlayerTank);
@@ -201,8 +216,8 @@ public class TGCGame : Game
         _tankHandle = _tank.TankHandler;
 
         // PARTICULAS
-        var particulasTexture = Content.Load<Texture2D>(ContentFolderTextures + "particula_100x100");
-        _particlesManager = new ParticlesManager(_shadowMapEffect, particulasTexture);
+        _particlesManager = new ParticlesManager(_shadowMapEffect);
+        _particlesManager.Initialize(Content);
 
         //HUD
         _hud = new Hud();
@@ -216,6 +231,9 @@ public class TGCGame : Game
 
         //CAMARA
         _camera = new TankFollowCamera(GraphicsDevice.Viewport.AspectRatio, _tank.Position);
+        _camera.Terrain = _terrain;
+
+        _cameraFrustum = new BoundingFrustum(_camera.View * _camera.Projection);
 
         //GIZMOS
         _gizmos.LoadContent(GraphicsDevice, Content);
@@ -228,16 +246,34 @@ public class TGCGame : Game
         time = gameTime;
         var kb = Keyboard.GetState();
         _gameStateManager.Update(gameTime, kb, _lastKeyboardState);
+
+        if (kb.IsKeyDown(Keys.G) && !_lastKeyboardState.IsKeyDown(Keys.G))
+        {
+            _gameStateManager.ToggleGodMode();
+        }
+
+        if (kb.IsKeyDown(Keys.O) && !_lastKeyboardState.IsKeyDown(Keys.O))
+        {
+            _graphics.IsFullScreen = !_graphics.IsFullScreen;
+            _graphics.ApplyChanges();
+        }
+
+        if (kb.IsKeyDown(Keys.M) && !_lastKeyboardState.IsKeyDown(Keys.M))
+        {
+            _soundManager.ChangeMusicVolume(0.05f);
+        }
+
+        if (kb.IsKeyDown(Keys.N) && !_lastKeyboardState.IsKeyDown(Keys.N))
+        {
+            _soundManager.ChangeMusicVolume(-0.05f);
+        }
+
         _lastKeyboardState = kb;
 
-        if (kb.IsKeyDown(Keys.P) && !_lastKeyboardState.IsKeyDown(Keys.P)) 
+        //El update del juego ocurre unicamente en estado Playing o GodMode, sino se sale temprano
+        if (!_gameStateManager.IsGameRunning)
         {
-            _gameStateManager.ForceState(_gameStateManager.CurrentState == GameState.Playing ? 
-                GameState.Paused : GameState.Playing);
-        }
-        //El update del juego ocurre unicamente en estado Playing, sino se sale temprano
-        if (_gameStateManager.CurrentState != GameState.Playing)
-        {
+            _skybox.Update(gameTime);
             base.Update(gameTime);
             return;
         }
@@ -256,10 +292,13 @@ public class TGCGame : Game
             if (!barrel.IsCollected) barrel.TryCollect(_tank, _simulation);
         }
 
+        _camera.Update(gameTime, _tank.Position, _tank.TurretRotationWorld); //A la camara ahora le paso la posicion de la torreta en vez de la base
+        _cameraFrustum.Matrix = _camera.View * _camera.Projection;
+
         _enemiesManager.Update(gameTime, _tank.Position);
 
-        _housesManager.Update();
-        _staticsManager.Update();
+        _housesManager.Update(_cameraFrustum, _gizmos, _simulation);
+        _staticsManager.Update(_cameraFrustum);
         _dinamicsManager.Update(_simulation);
         _barrelsManager.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
 
@@ -268,8 +307,8 @@ public class TGCGame : Game
         MouseState currentMouseState = Mouse.GetState();
 
         if (currentMouseState.LeftButton == ButtonState.Pressed 
-        && _previousMouseState.LeftButton == ButtonState.Released 
-        && _cannonballManager.CanFire)
+            && (_previousMouseState.LeftButton == ButtonState.Released || _gameStateManager.IsGodMode )
+            && _cannonballManager.CanFire)
         {
             Vector3 direction = _tank.CannonForward;
             direction.Normalize();
@@ -279,13 +318,20 @@ public class TGCGame : Game
                 (direction * GameConfig.Tank.CannonSpawnOffsetForward) +
                 (Vector3.Up * GameConfig.Tank.CannonSpawnOffsetUp);
 
-            _cannonballManager.Fire(spawnPosition, direction, _tank.AttackDamage, _gameStateManager.SoundManager, _camera.ListenerPosition, _camera.ListenerForward, true);
+            float playerPitch = SelectedPlayerTank switch
+            {
+                GameConfig.TankClass.Scout => GameConfig.TankClasses.Scout.CannonPitch,
+                GameConfig.TankClass.Heavy => GameConfig.TankClasses.Heavy.CannonPitch,
+                                         _ => GameConfig.TankClasses.Medium.CannonPitch
+            };
+
+            _cannonballManager.Fire(spawnPosition, direction, _tank.AttackDamage, _gameStateManager.SoundManager, _camera.ListenerPosition, _camera.ListenerForward, true, playerPitch);
             _particlesManager.GenerateSmoke(spawnPosition, direction, (float)gameTime.TotalGameTime.TotalSeconds);
         }
         _previousMouseState = currentMouseState;
 
         _cannonballManager.Update(gameTime);
-        _camera.Update(gameTime, _tank.Position, _tank.TurretRotationWorld); //A la camara ahora le paso la posicion de la torreta en vez de la base
+        
         _gizmos.UpdateViewProjection(_camera.View, _camera.Projection);
 
         _hud.TankFuel = _tank.CurrentFuel;
@@ -294,7 +340,7 @@ public class TGCGame : Game
 
         _hud.TankPosition = _tank.Position;
         _hud.CannonCurrentCooldown = _cannonballManager.CurrentCooldown;
-        _hud.CannonMaxCooldown = GameConfig.Tank.Cooldown;
+        _hud.CannonMaxCooldown = _cannonballManager.ShootCooldown;
         _hud.TankPosition = _tank.Position;
         _hud.TankRotation = _tank.RotationY;
         _hud.EnemyPositions = _enemiesManager.GetEnemiesPositions();
@@ -313,6 +359,13 @@ public class TGCGame : Game
     {
         _cannonballManager.Clear();
         EnemiesKilled = 0;
+
+        float playerCooldown = SelectedPlayerTank switch
+        { GameConfig.TankClass.Scout => GameConfig.TankClasses.Scout.Cooldown,
+            GameConfig.TankClass.Heavy => GameConfig.TankClasses.Heavy.Cooldown,
+            _ => GameConfig.TankClasses.Medium.Cooldown,
+        };
+        _cannonballManager.ShootCooldown = playerCooldown;
 
         var tankModel = Content.Load<Model>(ContentFolder3D + GameConfig.Tank.TankModelPath);
         var tankTexture = Content.Load<Texture2D>(ContentFolderTextures + "paleta_256x512");
@@ -333,19 +386,23 @@ public class TGCGame : Game
         _particlesManager.Reset();
 
         _camera = new TankFollowCamera(GraphicsDevice.Viewport.AspectRatio, _tank.Position);
+        _camera.Terrain = _terrain;
+        _cameraFrustum = new BoundingFrustum(_camera.View * _camera.Projection);
     }
 
     protected override void Draw(GameTime gameTime)
     {
         // Aca deberiamos poner toda la logica de renderizado del juego.
         _ = (float)gameTime.TotalGameTime.TotalSeconds;
-        GraphicsDevice.Clear(Color.CornflowerBlue);
+        //GraphicsDevice.Clear(Color.CornflowerBlue);
+        GraphicsDevice.Clear(ClearOptions.Target | ClearOptions.DepthBuffer, Color.CornflowerBlue, 1f, 0);
 
-        if (_gameStateManager.CurrentState == GameState.Playing || _gameStateManager.CurrentState == GameState.Paused)
+        if (_gameStateManager.IsGameRunning || _gameStateManager.CurrentState == GameState.Paused)
         {
             var smm = _shadowMapManager;
             var lvp = smm.LightViewProjection; // una sola matriz para todo
 
+            //pasadas de sombras
             if (smm.RebajarSombrasEstaticas)
             {
                 smm.BeginStaticShadowPass();
@@ -355,24 +412,31 @@ public class TGCGame : Game
                 smm.RebajarSombrasEstaticas = false;
             }
 
+            var cameraCorners = GetCameraFrustumCorners();
+            smm.FitDynamicToCamera(cameraCorners);
             smm.BeginDynamicShadowPass();
             _tank.DrawDepth(lvp);
-            _enemiesManager.DrawDepth(lvp);
+            _enemiesManager.DrawDepth(lvp, CameraFrustum);
             _cannonballManager.DrawDepth(lvp);
-            _dinamicsManager.DrawDepth(lvp);
-            _barrelsManager.DrawDepth(lvp);
+            _dinamicsManager.DrawDepth(lvp, CameraFrustum);
+            _barrelsManager.DrawDepth(lvp, CameraFrustum);
             
+            //preparar lighting pass
             smm.BeginLightingPass(_shadowMapEffect);
             GraphicsDevice.Clear(Color.CornflowerBlue);
 
+            //dibujar skybox
+            _skybox.Draw(_camera.View, _camera.Projection, _camera.ListenerPosition);
+
+            //dibujar el resto de la escena, encima del skybox
             _terrain.Draw(_camera.View, _camera.Projection, _camera.ListenerPosition);
             _tank.Draw(_camera.View, _camera.Projection, _camera.ListenerPosition);
             _cannonballManager.Draw(_camera.View, _camera.Projection);
             _housesManager.Draw(_camera.View, _camera.Projection);
             _staticsManager.Draw(_camera.View, _camera.Projection);
-            _dinamicsManager.Draw(_camera.View, _camera.Projection);
-            _barrelsManager.Draw(_camera.View, _camera.Projection, _gizmos, _simulation);
-            _enemiesManager.Draw(_camera.View, _camera.Projection, _camera.ListenerPosition);
+            _dinamicsManager.Draw(_camera.View, _camera.Projection, CameraFrustum);
+            _barrelsManager.Draw(_camera.View, _camera.Projection, _gizmos, _simulation, CameraFrustum);
+            _enemiesManager.Draw(_camera.View, _camera.Projection, _camera.ListenerPosition, CameraFrustum);
             _particlesManager.Draw(_camera.View, _camera.Projection);
 
             _hud.Draw();
@@ -392,6 +456,39 @@ public class TGCGame : Game
                 new NarrowPhaseCallbacks(),
                 new PoseIntegratorCallbacks(new System.Numerics.Vector3(0, -9.8f, 0)),
                 new SolveDescription(8, 1));
+    }
+
+    private Vector3[] GetCameraFrustumCorners()
+    {
+        var viewport = GraphicsDevice.Viewport;
+        var nearCorners = new Vector3[4];
+        var farCorners = new Vector3[4];
+
+        var projection = _camera.Projection;
+        var view = _camera.View;
+
+        // Near plane corners
+        nearCorners[0] = new Vector3(-1, -1, 0);
+        nearCorners[1] = new Vector3(1, -1, 0);
+        nearCorners[2] = new Vector3(1, 1, 0);
+        nearCorners[3] = new Vector3(-1, 1, 0);
+
+        // Far plane corners
+        farCorners[0] = new Vector3(-1, -1, 1);
+        farCorners[1] = new Vector3(1, -1, 1);
+        farCorners[2] = new Vector3(1, 1, 1);
+        farCorners[3] = new Vector3(-1, 1, 1);
+
+        // Transformar a world space
+        var invViewProj = Matrix.Invert(view * projection);
+        for (int i = 0; i < 4; i++)
+        {
+            nearCorners[i] = Vector3.Transform(nearCorners[i], invViewProj);
+            farCorners[i] = Vector3.Transform(farCorners[i], invViewProj);
+        }
+
+        return new[] { nearCorners[0], nearCorners[1], nearCorners[2], nearCorners[3],
+                   farCorners[0], farCorners[1], farCorners[2], farCorners[3] };
     }
 
     protected override void UnloadContent()

@@ -114,6 +114,18 @@ struct ShadowedVertexShaderOutput
     float4 Normal : TEXCOORD3;
 };
 
+struct InstanceVertexShaderInput
+{
+    float4 Position : POSITION0;
+    float3 Normal : NORMAL;
+    float2 TextureCoordinates : TEXCOORD0;
+    
+    float4 InstanceWorld1 : TEXCOORD1;
+    float4 InstanceWorld2 : TEXCOORD2;
+    float4 InstanceWorld3 : TEXCOORD3;
+    float4 InstanceWorld4 : TEXCOORD4;
+};
+
 DepthPassVertexShaderOutput DepthVS(in DepthPassVertexShaderInput input)
 {
 	DepthPassVertexShaderOutput output;
@@ -151,6 +163,37 @@ ShadowedVertexShaderOutput MainVS(in ShadowedVertexShaderInput input)
 
     output.TextureCoordinates = input.TextureCoordinates;
     output.TextureCoordinates.y += TrackOffset;
+
+    float4 offsetWorldPos = worldPos + float4(worldNormal * normalOffsetScale, 0);
+    output.LightSpacePosition = mul(offsetWorldPos, LightViewProjection);
+
+    output.Normal = float4(worldNormal, 1);
+
+    return output;
+}
+
+ShadowedVertexShaderOutput InstancedVS(in InstanceVertexShaderInput input)
+{
+    ShadowedVertexShaderOutput output;
+    
+    float4x4 instanceWorld = float4x4(
+        input.InstanceWorld1,
+        input.InstanceWorld2,
+        input.InstanceWorld3,
+        input.InstanceWorld4
+    );
+
+    float4 worldPos = mul(input.Position, instanceWorld);
+    float3 worldNormal = normalize(mul(input.Normal, (float3x3)instanceWorld));
+
+    worldPos.xyz = ApplyDeformation(worldPos.xyz, worldNormal);
+
+    output.WorldSpacePosition = worldPos;
+
+    float4 viewPosition = mul(worldPos, View);
+    output.Position = mul(viewPosition, Projection);
+
+    output.TextureCoordinates = input.TextureCoordinates;
 
     float4 offsetWorldPos = worldPos + float4(worldNormal * normalOffsetScale, 0);
     output.LightSpacePosition = mul(offsetWorldPos, LightViewProjection);
@@ -212,10 +255,29 @@ float4 ShadowedPCFPS(in ShadowedVertexShaderOutput input) : COLOR
     return float4(finalColor, texColor.a);
 }
 
+DepthPassVertexShaderOutput DepthInstancedVS(DepthPassVertexShaderInput input, InstanceVertexShaderInput instanceInput)
+{
+    DepthPassVertexShaderOutput output;
 
-// ==========================================
-// PARTICLE TECHNIQUE
-// ==========================================
+    float4x4 instanceWorld = float4x4(
+        instanceInput.InstanceWorld1,
+        instanceInput.InstanceWorld2,
+        instanceInput.InstanceWorld3,
+        instanceInput.InstanceWorld4
+    );
+
+    float3 worldPos = mul(input.Position, instanceWorld).xyz;
+    float3 worldNormal = normalize(mul(input.Normal, (float3x3)instanceWorld));
+    worldPos = ApplyDeformation(worldPos, worldNormal);
+
+    float4 offsetWorldPos = float4(worldPos, 1.0) + float4(worldNormal * normalOffsetScale, 0);
+    output.Position = mul(offsetWorldPos, LightViewProjection);
+    output.ScreenSpacePosition = output.Position;
+
+    return output;
+}
+
+// TECNICA DE PARTICULAS
 texture ParticleTexture;
 sampler2D particleSampler = sampler_state
 {
@@ -257,6 +319,21 @@ float4 ParticlePS(ParticleVSOutput input) : COLOR0
     return float4(texColor.rgb * input.Color.rgb, texColor.a * input.Color.a);
 }
 
+technique Particles
+{
+    pass Pass0
+    {
+        AlphaBlendEnable = true;
+        SrcBlend = SrcAlpha;
+        DestBlend = InvSrcAlpha;
+        ZWriteEnable = false;
+
+        VertexShader = compile VS_SHADERMODEL ParticleVS();
+        PixelShader  = compile PS_SHADERMODEL ParticlePS();
+    }
+};
+
+
 technique DepthPass
 {
 	pass Pass0
@@ -273,16 +350,20 @@ technique DrawShadowedHibrido {
     }
 };
 
-technique Particles
+technique DrawInstanced
 {
     pass Pass0
     {
-        AlphaBlendEnable = true;
-        SrcBlend = SrcAlpha;
-        DestBlend = InvSrcAlpha;
-        ZWriteEnable = false;
+        VertexShader = compile VS_SHADERMODEL InstancedVS();
+        PixelShader = compile PS_SHADERMODEL ShadowedPCFPS();
+    }
+};
 
-        VertexShader = compile VS_SHADERMODEL ParticleVS();
-        PixelShader  = compile PS_SHADERMODEL ParticlePS();
+technique DepthPassInstanced
+{
+    pass Pass0
+    {
+        VertexShader = compile VS_SHADERMODEL DepthInstancedVS();
+        PixelShader = compile PS_SHADERMODEL DepthPS();
     }
 };

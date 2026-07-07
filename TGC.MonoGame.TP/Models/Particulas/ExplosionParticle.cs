@@ -11,15 +11,13 @@ public class ExplosionParticle : Particle
         genTime = time;
         _initialPos = position;
         _currentPos = position;
-        _size = 1.5f;
         _isAlive = true;
         speed = 0.5f;
         float x = (random.NextSingle() - 0.5f) * 2f;
         float y = random.NextSingle() * 2f;
         float z = (random.NextSingle() - 0.5f) * 2f;
         Velocity = Vector3.Normalize(new Vector3(x, y, z)) * 3f;
-        _color = Color.MonoGameOrange;
-        maxTime = 0.8f;
+        maxTime = 1f;
     }
 
     public void Update(GameTime gameTime)

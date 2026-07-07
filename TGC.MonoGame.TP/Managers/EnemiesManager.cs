@@ -4,6 +4,7 @@ using Microsoft.Xna.Framework.Content;
 using Microsoft.Xna.Framework.Graphics;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using TGC.MonoGame.TP.Gizmos;
 using TGC.MonoGame.TP.Models.Tanks;
 using static TGC.MonoGame.TP.GameConfig;
@@ -24,6 +25,7 @@ public class EnemiesManager
     private int _enemiesCount = Enemies.EnemiesCount;
     public List<TankEnemy> _enemies = new();
     private List<BodyHandle> _enemiesHandles = new();
+    private List<Vector3> _enemiesPositionsCache = new List<Vector3>(GameConfig.Enemies.EnemiesCount);
     
     //sobre el terreno
     private Terrain _terrain;
@@ -33,6 +35,7 @@ public class EnemiesManager
     private Simulation _simulation;
 
     private GraphicsDevice _graphicsDevice;
+    public Dictionary<BodyHandle, TankEnemy> EnemiesByHandle { get; private set; } = new();
 
     public EnemiesManager(Terrain terrain, Simulation simulation, GraphicsDevice graphicsDevice)
     {
@@ -66,15 +69,16 @@ public class EnemiesManager
             enemy.Load(tankModel, tankTexture, tracksTexture, effect, _simulation);
             _enemies.Add(enemy);
             _enemiesHandles.Add(enemy.TankHandler);
+            EnemiesByHandle[enemy.TankHandler] = enemy;
         }
     }
 
     public List<Vector3> GetEnemiesPositions()
     {
-        var positions = new List<Vector3>();
+        _enemiesPositionsCache.Clear();
         foreach(var enemy in _enemies)
-            if(!enemy.IsDead) positions.Add(enemy.Position);
-        return positions;
+            if(!enemy.IsDead) _enemiesPositionsCache.Add(enemy.Position);
+        return _enemiesPositionsCache;
     }
 
     public void Update(GameTime gameTime, Vector3 position) {
@@ -87,6 +91,8 @@ public class EnemiesManager
             {
                 //Eliminar el cuerpo fisico
                 _simulation.Bodies.Remove(tankEnemy.TankHandler);
+
+                EnemiesByHandle.Remove(tankEnemy.TankHandler);
 
                 //Remover el handle de la lista auxiliar para evitar leaks
                 _enemiesHandles.Remove(tankEnemy.TankHandler);
@@ -101,21 +107,31 @@ public class EnemiesManager
             tankEnemy.UpdateEnemy(gameTime, _simulation, position.ToNumerics());
 
         }
-     }
-
-    public void Draw(Matrix view, Matrix projection, Vector3 cameraPosition)
-    {
-        foreach(var tankEnemy in _enemies)
-        {
-            tankEnemy.Draw(view, projection, cameraPosition);
-        }
     }
 
-    public void DrawDepth(Matrix lightViewProjection)
+    public void Draw(Matrix view, Matrix projection, Vector3 cameraPosition, BoundingFrustum CameraFrustum)
     {
-        foreach(var tankEnemy in _enemies)
+        int totalVisible = 0;
+        foreach (var tankEnemy in _enemies)
         {
-            tankEnemy.DrawDepth(lightViewProjection);
+            float distSq = Vector3.DistanceSquared(cameraPosition, tankEnemy.Position);
+            bool isClose = distSq < 225f; // 225 = 15*15
+
+            if (true || isClose || CameraFrustum.Intersects(tankEnemy._worldBoundingVolume))
+            {
+                tankEnemy.Draw(view, projection, cameraPosition);
+                totalVisible++;
+            }
+        }
+        //Console.WriteLine($"Casas Visibles: {totalVisible} / {_enemiesCount}");
+    }
+
+    public void DrawDepth(Matrix lightViewProjection, BoundingFrustum CameraFrustum)
+    {
+        foreach (var tankEnemy in _enemies)
+        {
+            if (true || CameraFrustum.Intersects(tankEnemy._worldBoundingVolume))
+                tankEnemy.DrawDepth(lightViewProjection);
         }
     }
 
@@ -127,6 +143,7 @@ public class EnemiesManager
 
         _enemies.Clear();
         _enemiesHandles.Clear();
+        EnemiesByHandle.Clear();
 
         // recargar a los enemigos
         LoadContent(TGCGame.Instance.Content);

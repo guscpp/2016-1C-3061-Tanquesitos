@@ -3,12 +3,29 @@ using BepuPhysics.Collidables;
 using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using System;
+using System.ComponentModel.DataAnnotations;
+using TGC.MonoGame.TP.Collisions;
 using TGC.MonoGame.TP.Gizmos;
 
 namespace TGC.MonoGame.TP.Models.Tanks;
 
 public abstract class TankBase
 {
+    private Matrix _worldMatrix;
+    private Matrix _turretWorld;
+    private Matrix _cannonWorld;
+    private Matrix _invTransposeWorld;
+    private Matrix _invTransposeTurret;
+    private Matrix _invTransposeCannon;
+    private Vector3 _cannonForward;
+    private Vector3 _cannonMuzzlePosition;
+
+    public Matrix WorldMatrix => _worldMatrix;
+    public Matrix TurretWorld => _turretWorld;
+    public Matrix CannonWorld => _cannonWorld;
+    public Vector3 CannonForward => _cannonForward;
+    public Vector3 CannonMuzzlePosition => _cannonMuzzlePosition;
+
     protected Effect _effect;
     protected Texture2D _texture;
     protected Texture2D _tracksTexture;
@@ -29,6 +46,8 @@ public abstract class TankBase
     public float RotationY { get; protected set; }
     public bool IsDead { get; protected set; }
     public BodyHandle TankHandler;
+    private BoundingBox _boundingVolume;
+    public BoundingBox _worldBoundingVolume {get; protected set;}
 
     protected System.Numerics.Quaternion _physicsOrientation = System.Numerics.Quaternion.Identity;
     protected float _turretRotation = 0f;
@@ -53,18 +72,13 @@ public abstract class TankBase
     protected GraphicsDevice _graphicsDevice;
     private float _normalOffsetScale;
 
+    private static readonly Vector4[] _impactsDataCache = new Vector4[MaxImpacts];
+    private static Vector3 _tempVector3 = Vector3.Zero;
+
 
     public void ClearImpacts()
     {
         for (int i = 0; i < MaxImpacts; i++) ImpactActive[i] = false;
-    }
-    public Vector3 CannonForward
-    {
-        get
-        {
-            var rot = Matrix.CreateRotationX(_cannonRotation) * Matrix.CreateRotationY(TurretRotationWorld);
-            return Vector3.Transform(Vector3.Forward, rot);
-        }
     }
 
     // funcion para obtener el vector de la derecha del tanque
@@ -78,23 +92,6 @@ public abstract class TankBase
             return right.LengthSquared() > 0.0001f ? Vector3.Normalize(right) : Vector3.Right;
         }
     }
-
-    public Matrix WorldMatrix =>
-        Matrix.CreateScale(GameConfig.Tank.TankScale) *
-        Matrix.CreateRotationX(MathHelper.ToRadians(-90f)) *
-        Matrix.CreateFromQuaternion(new Quaternion(
-            _physicsOrientation.X, 
-            _physicsOrientation.Y, 
-            _physicsOrientation.Z, 
-            _physicsOrientation.W)) *
-        Matrix.CreateTranslation(Position + new Vector3(0, GameConfig.Tank.VisualOffsetY, 0));
-
-    public Matrix TurretWorld => Matrix.CreateRotationZ(_turretRotation) * WorldMatrix;
-
-    public Matrix CannonWorld => Matrix.CreateTranslation(0f, 0f, -1.5f) * Matrix.CreateRotationX(_cannonRotation) * Matrix.CreateTranslation(0f, 0f, 1.5f) * TurretWorld;
-
-    public Vector3 CannonMuzzlePosition => Vector3.Transform(
-        new Vector3(0f, GameConfig.Tank.CannonMuzzleOffsetY, GameConfig.Tank.CannonMuzzleOffsetZ), CannonWorld);
 
     protected Color GetTankColor()
     {
@@ -111,6 +108,17 @@ public abstract class TankBase
         }
     }
 
+    protected void RecalculateWorldBoundingBox()
+    {
+        var corners = new Vector3[8];
+        _boundingVolume.GetCorners(corners); //genera los 8 vertices de la caja local
+        for (int i = 0; i < corners.Length; i++)
+        {
+            corners[i] = Vector3.Transform(corners[i], WorldMatrix);
+        }
+        _worldBoundingVolume = BoundingBox.CreateFromPoints(corners);
+    }
+
     public void Load(Model model, Texture2D texture, Texture2D tracksTexture, Effect effect, Simulation simulation)
     {
         _normalOffsetScale = 0.4f;
@@ -121,6 +129,9 @@ public abstract class TankBase
         foreach (var mesh in Model.Meshes)
             foreach (var part in mesh.MeshParts) part.Effect = _effect;
         CreatePhysicsBody(simulation);
+
+        _boundingVolume = BoundingVolumesUtils.CreateAABBFromModel(model);
+        _worldBoundingVolume = _boundingVolume;
     }
 
     protected virtual void CreatePhysicsBody(Simulation simulation)
@@ -146,9 +157,11 @@ public abstract class TankBase
             inertia, new CollidableDescription(shapeIdx, 0.1f), new BodyActivityDescription(0.01f)));
     }
 
-    public void HandleHealth(float damage, Vector3 impactPointWorld)
+    // Metodo virtual para agregarle el llamado al camera shake en el tanque del player
+    public virtual void HandleHealth(float damage, Vector3 impactPointWorld)
     {
         HealthPoints -= damage;
+        
         if (HealthPoints <= 0) { 
             HealthPoints = 0;
             if (!(this is TankPlayer)) TGCGame.Instance.EnemiesKilled++;
@@ -178,6 +191,7 @@ public abstract class TankBase
         _effect.CurrentTechnique = _effect.Techniques["DrawShadowedHibrido"];
 
         var smm = TGCGame.Instance.ShadowMapManager;
+
         _effect.Parameters["View"]?.SetValue(view);
         _effect.Parameters["Projection"]?.SetValue(projection);
         _effect.Parameters["ModelTexture"]?.SetValue(_texture);
@@ -215,41 +229,43 @@ public abstract class TankBase
             _effect.Parameters["IsDeformable"].SetValue(isDeformable ? 1 : 0);
 
             Matrix finalWorld;
+            Matrix finalInvTranspose;
             Vector3[] sourceImpactArray;
 
             if (mesh.Name.Contains("Cabeza") || mesh.Name.Contains("Antena") || mesh.Name.Contains("Pistola"))
             {
-                finalWorld = TurretWorld;
+                finalWorld = _turretWorld;
+                finalInvTranspose = _invTransposeTurret;
                 sourceImpactArray = ImpactTurretLocal;
             }
             else if (mesh.Name.Contains("Canon") || mesh.Name.Contains("Anillo"))
             {
-                finalWorld = CannonWorld;
+                finalWorld = _cannonWorld;
+                finalInvTranspose = _invTransposeCannon;
                 sourceImpactArray = ImpactCannonLocal;
             }
             else
             {
-                finalWorld = WorldMatrix;
+                finalWorld = _worldMatrix;
+                finalInvTranspose = _invTransposeWorld;
                 sourceImpactArray = ImpactChassisLocal;
             }
 
-            // Empaquetar los 6 impactos a Vector4 para enviarlos al shader
-            Vector4[] impactsData = new Vector4[MaxImpacts];
             for (int i = 0; i < MaxImpacts; i++)
             {
                 if (ImpactActive[i])
                 {
                     // Transformar el punto local a mundo usando la matriz de la pieza actual
                     Vector3 worldPos = Vector3.Transform(sourceImpactArray[i], finalWorld);
-                    impactsData[i] = new Vector4(worldPos, ImpactDepthArray[i]); // W = Profundidad
+                    _impactsDataCache[i] = new Vector4(worldPos, ImpactDepthArray[i]); // W = Profundidad
                 }
                 else
                 {
-                    impactsData[i] = Vector4.Zero; // W=0 indica impacto inactivo
+                    _impactsDataCache[i] = Vector4.Zero; // W=0 indica impacto inactivo
                 }
             }
 
-            _effect.Parameters["Impacts"].SetValue(impactsData);
+            _effect.Parameters["Impacts"].SetValue(_impactsDataCache);
 
             // Aplicar colores segun scout/medium/heavy
             var diffuseParam = _effect.Parameters["DiffuseColor"];
@@ -264,7 +280,7 @@ public abstract class TankBase
             }
 
             _effect.Parameters["World"]?.SetValue(finalWorld);
-            _effect.Parameters["InverseTransposeWorld"]?.SetValue(Matrix.Transpose(Matrix.Invert(finalWorld)));
+            _effect.Parameters["InverseTransposeWorld"]?.SetValue(finalInvTranspose);
 
             mesh.Draw();
         }
@@ -290,36 +306,33 @@ public abstract class TankBase
 
             if (mesh.Name.Contains("Cabeza") || mesh.Name.Contains("Antena") || mesh.Name.Contains("Pistola"))
             {
-                world = TurretWorld;
+                world = _turretWorld;
                 sourceImpactArray = ImpactTurretLocal;
             }
             else if (mesh.Name.Contains("Canon") || mesh.Name.Contains("Anillo"))
             {
-                world = CannonWorld;
+                world = _cannonWorld;
                 sourceImpactArray = ImpactCannonLocal;
             }
             else
             {
-                world = WorldMatrix;
+                world = _worldMatrix;
                 sourceImpactArray = ImpactChassisLocal;
             }
 
-            // Mismo empaquetado de impactos que en Draw(), para que la deformación
-            // del shadow map coincida con la del render visual
-            Vector4[] impactsData = new Vector4[MaxImpacts];
             for (int i = 0; i < MaxImpacts; i++)
             {
                 if (ImpactActive[i])
                 {
                     Vector3 worldPos = Vector3.Transform(sourceImpactArray[i], world);
-                    impactsData[i] = new Vector4(worldPos, ImpactDepthArray[i]);
+                    _impactsDataCache[i] = new Vector4(worldPos, ImpactDepthArray[i]);
                 }
                 else
                 {
-                    impactsData[i] = Vector4.Zero;
+                    _impactsDataCache[i] = Vector4.Zero;
                 }
             }
-            _effect.Parameters["Impacts"]?.SetValue(impactsData);
+            _effect.Parameters["Impacts"]?.SetValue(_impactsDataCache);
 
             _effect.Parameters["World"]?.SetValue(world);
 
@@ -465,5 +478,24 @@ public abstract class TankBase
         float rightTrackSpeed = fwdSpeed + angVel.Y * trackHalfWidth;
         _trackOffsetLeft += leftTrackSpeed * dt * 0.1f;
         _trackOffsetRight += rightTrackSpeed * dt * 0.1f;
+    }
+
+    protected void RecalculateMatrices()
+    {
+        _worldMatrix = Matrix.CreateScale(GameConfig.Tank.TankScale) *
+                       Matrix.CreateRotationX(MathHelper.ToRadians(-90f)) *
+                       Matrix.CreateFromQuaternion(new Quaternion(_physicsOrientation.X, _physicsOrientation.Y, _physicsOrientation.Z, _physicsOrientation.W)) *
+                       Matrix.CreateTranslation(Position + new Vector3(0, GameConfig.Tank.VisualOffsetY, 0));
+
+        _turretWorld = Matrix.CreateRotationZ(_turretRotation) * _worldMatrix;
+        _cannonWorld = Matrix.CreateTranslation(0f, 0f, -1.5f) * Matrix.CreateRotationX(_cannonRotation) * Matrix.CreateTranslation(0f, 0f, 1.5f) * _turretWorld;
+
+        // Cachear las matrices inversas transpuestas (¡Ahorra miles de ciclos en el Draw!)
+        _invTransposeWorld = Matrix.Transpose(Matrix.Invert(_worldMatrix));
+        _invTransposeTurret = Matrix.Transpose(Matrix.Invert(_turretWorld));
+        _invTransposeCannon = Matrix.Transpose(Matrix.Invert(_cannonWorld));
+
+        _cannonForward = Vector3.Transform(Vector3.Forward, Matrix.CreateRotationX(_cannonRotation) * Matrix.CreateRotationY(TurretRotationWorld));
+        _cannonMuzzlePosition = Vector3.Transform(new Vector3(0f, GameConfig.Tank.CannonMuzzleOffsetY, GameConfig.Tank.CannonMuzzleOffsetZ), _cannonWorld);
     }
 }

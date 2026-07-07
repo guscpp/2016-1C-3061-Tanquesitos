@@ -37,6 +37,15 @@ public abstract class TankEnemy : TankBase
         ShootCooldown = cooldown;
     }
 
+    public override void HandleHealth(float damage, Vector3 impactPointWorld)
+    {
+        base.HandleHealth(damage, impactPointWorld);
+
+        float remainingHP = Math.Max(0, HealthPoints);
+
+        if (TGCGame.Instance.Hud != null) TGCGame.Instance.Hud.AddDamageNumber(impactPointWorld, remainingHP);
+    }
+
     // Mantengo la firma original para no tocar TGCGame.cs
     public void UpdateEnemy(GameTime gameTime, Simulation simulation, Vector3 targetPos)
     {
@@ -141,6 +150,8 @@ public abstract class TankEnemy : TankBase
 
         //Aplicar fisica
         ApplyPhysics(simulation, dt, forwardInput, turnInput);
+        RecalculateMatrices();
+        RecalculateWorldBoundingBox();
     }
 
     //Metodo auxiliar
@@ -150,6 +161,13 @@ public abstract class TankEnemy : TankBase
         var spawnPos = currentPos + dir * GameConfig.Enemies.CannonSpawnOffsetForward +
             Vector3.Up * GameConfig.Enemies.CannonSpawnOffsetUp;
 
+        float enemyPitch = TankClass switch
+        {
+            GameConfig.TankClass.Scout => GameConfig.TankClasses.Scout.CannonPitch,
+            GameConfig.TankClass.Heavy => GameConfig.TankClasses.Heavy.CannonPitch,
+            _ => GameConfig.TankClasses.Medium.CannonPitch
+        };
+
         TGCGame.Instance.CannonballManager.Fire(
             spawnPos,
             dir,
@@ -157,7 +175,8 @@ public abstract class TankEnemy : TankBase
             TGCGame.Instance.SoundManager,
             TGCGame.Instance.Camera.ListenerPosition,
             TGCGame.Instance.Camera.ListenerForward,
-            false);
+            false,
+            enemyPitch);
         var smokeSpawnPos = currentPos + (Vector3.Normalize(CannonForward) + Vector3.Up) * 2f;
         TGCGame.Instance.ParticlesManager.GenerateSmoke(smokeSpawnPos, direction, (float)time.TotalGameTime.TotalSeconds);
     }
