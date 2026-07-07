@@ -118,36 +118,50 @@ public class InstancedDecorationGroup
 
     public void DrawDepth(Matrix lightViewProjection)
     {
-        if (_visibleInstanceCount == 0) return;
-
-        _effect.Parameters["LightViewProjection"]?.SetValue(lightViewProjection);
-        //_effect.Parameters["normalOffsetScale"]?.SetValue(_normalOffsetScale);
-        _effect.Parameters["IsDeformable"]?.SetValue(0);
-
-        _effect.CurrentTechnique = _effect.Techniques["DepthPassInstanced"];
-
-        foreach (var mesh in _model.Meshes)
+       try
         {
-            foreach (var meshPart in mesh.MeshParts)
+            var technique = _effect.Techniques["DepthPassInstanced"];
+            if (technique == null)
             {
-                _graphicsDevice.SetVertexBuffers(
-                    new VertexBufferBinding(meshPart.VertexBuffer, 0, 0),
-                    new VertexBufferBinding(_instanceBuffer, 0, 1)
-                );
-                _graphicsDevice.Indices = meshPart.IndexBuffer;
+                Console.WriteLine("ERROR: técnica DepthPassInstanced no encontrada");
+                return;
+            }
 
-                foreach (var pass in _effect.CurrentTechnique.Passes)
+            Console.WriteLine("Se dibuja el grupo de instancias en DrawDepth");
+            
+            _effect.Parameters["LightViewProjection"]?.SetValue(lightViewProjection);
+            _effect.Parameters["normalOffsetScale"]?.SetValue(0.05f);
+            _effect.Parameters["IsDeformable"]?.SetValue(0);
+
+            _effect.CurrentTechnique = technique;
+
+            foreach (var mesh in _model.Meshes)
+            {
+                foreach (var meshPart in mesh.MeshParts)
                 {
-                    pass.Apply();
-                    _graphicsDevice.DrawInstancedPrimitives(
-                        PrimitiveType.TriangleList,
-                        meshPart.VertexOffset,
-                        0,
-                        meshPart.PrimitiveCount,
-                        _visibleInstanceCount
+                    _graphicsDevice.SetVertexBuffers(
+                        new VertexBufferBinding(meshPart.VertexBuffer, 0, 0),
+                        new VertexBufferBinding(_instanceBuffer, 0, 1)
                     );
+                    _graphicsDevice.Indices = meshPart.IndexBuffer;
+
+                    foreach (var pass in _effect.CurrentTechnique.Passes)
+                    {
+                        pass.Apply();
+                        _graphicsDevice.DrawInstancedPrimitives(
+                            PrimitiveType.TriangleList,
+                            meshPart.VertexOffset,
+                            0,
+                            meshPart.PrimitiveCount,
+                            _instanceCount
+                        );
+                    }
                 }
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"ERROR en DrawDepth instanciado: {ex.Message}");
         }
     }
 

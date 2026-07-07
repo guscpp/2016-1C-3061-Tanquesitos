@@ -193,6 +193,19 @@ public class HousesManager
     {
         return _houses.Select(house => house.Position).ToList();
     }
+
+    public void Dispose()
+    {
+        if (_houseGroups != null)
+        {
+            foreach (var group in _houseGroups.Values)
+            {
+                // Destruye los VertexBuffers creados para el Hardware Instancing
+                group?.Dispose();
+            }
+            _houseGroups.Clear();
+        }
+    }
 }
 
 

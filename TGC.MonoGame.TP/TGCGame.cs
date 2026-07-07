@@ -111,6 +111,7 @@ public class TGCGame : Game
 
     protected override void Initialize()
     {
+        Console.Write("INICIO TGC");
         // Se activa el Backface Culling en sentido anti-horario (se renderizan las caras frontales de los triangulos)
         GraphicsDevice.RasterizerState = RasterizerState.CullCounterClockwise;
 
@@ -268,6 +269,11 @@ public class TGCGame : Game
             _soundManager.ChangeMusicVolume(-0.05f);
         }
 
+        if (kb.IsKeyDown(Keys.R) && !_lastKeyboardState.IsKeyDown(Keys.R))
+        {
+            _shadowMapManager.RebajarSombrasEstaticas = true;
+        }
+
         _lastKeyboardState = kb;
 
         //El update del juego ocurre unicamente en estado Playing o GodMode, sino se sale temprano
@@ -388,6 +394,8 @@ public class TGCGame : Game
         _camera = new TankFollowCamera(GraphicsDevice.Viewport.AspectRatio, _tank.Position);
         _camera.Terrain = _terrain;
         _cameraFrustum = new BoundingFrustum(_camera.View * _camera.Projection);
+        _shadowMapManager.RebajarSombrasEstaticas = true;
+        Console.WriteLine("=== FLAG SETEADO EN RESETGAME ===");
     }
 
     protected override void Draw(GameTime gameTime)
@@ -405,6 +413,7 @@ public class TGCGame : Game
             //pasadas de sombras
             if (smm.RebajarSombrasEstaticas)
             {
+                Console.WriteLine("=== DIBUJANDO SHADOW MAP ESTÁTICO ===");
                 smm.BeginStaticShadowPass();
                 _terrain.DrawDepth(lvp);
                 _housesManager.DrawDepth(lvp);
@@ -496,6 +505,8 @@ public class TGCGame : Game
         // Libero los recursos.
         Content.Unload();
         _shadowMapManager?.Dispose();
+        _staticsManager?.Dispose();
+        _housesManager?.Dispose();
         _simulation?.Dispose();
         _simulation = null;
         _bufferPool.Clear();

@@ -12,7 +12,7 @@ namespace TGC.MonoGame.TP.Managers
 
         public RenderTarget2D StaticShadowRenderTarget { get; private set; }
         public RenderTarget2D DynamicShadowRenderTarget { get; private set; }
-
+        public bool RebajarSombrasEstaticas { get; set; } = true;
         public Matrix LightView { get; private set; }
         public Matrix LightProjection { get; private set; }
         public Matrix LightViewProjection { get; private set; }
@@ -51,8 +51,6 @@ namespace TGC.MonoGame.TP.Managers
                 }
             } 
         }
-
-        public bool RebajarSombrasEstaticas { get; set; } = true;
 
         public ShadowMapManager(GraphicsDevice graphicsDevice, int resolution = 2048)
         {

@@ -150,9 +150,18 @@ public class StaticsManager
 
     public void DrawDepth(Matrix lightViewProjection)
     {
-        foreach (var group in _decorationGroups.Values)
+        Console.WriteLine($"DrawDepth grupos: {_decorationGroups.Count}");
+
+        foreach (var group in _decorationGroups)
         {
-            group.DrawDepth(lightViewProjection);
+            // 1. Obtenemos la lista original con TODAS las matrices (sin culling)
+            var fullList = _instancedMatrices[group.Key];
+
+            // 2. Restauramos el buffer en la GPU para que recupere el 100% de los objetos
+            group.Value.SetVisibleInstances(fullList);
+
+            // 3. Dibujamos el shadow map completo
+            group.Value.DrawDepth(lightViewProjection);
         }
     }
 
@@ -258,5 +267,17 @@ public class StaticsManager
     public List<Vector3> GetDecorations()
     {
         return _decorationModels.Select(decoration => decoration.Position).ToList();
+    }
+
+    public void Dispose()
+    {
+        if (_decorationGroups != null)
+        {
+            foreach (var group in _decorationGroups.Values)
+            {
+                group?.Dispose();
+            }
+            _decorationGroups.Clear();
+        }
     }
 }
