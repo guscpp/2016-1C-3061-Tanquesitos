@@ -21,8 +21,13 @@ Fotografia |  Apellido, Nombre
 | <img width="100" height="100" alt="juanma" src="https://github.com/user-attachments/assets/9f87fd0c-90fb-48c4-8d5a-4062197bd646"> | Juan Martin Gutierrez |
 
 ## Capturas
+<img width="724" height="387" alt="image" src="https://github.com/user-attachments/assets/9da77bdd-8e6d-4e2d-9151-629f9761a496" />
+<img width="724" height="387" alt="image" src="https://github.com/user-attachments/assets/3882472e-c241-4ce4-8e5e-b67c878bc2c0" />
+<img width="724" height="387" alt="image" src="https://github.com/user-attachments/assets/05c8a629-0b44-49ad-b0bf-caf698603418" />
+
+
 
 Todavia no hay
 ## Game Play
 
-Todavia no hay
+[![Tanquesitos](https://img.youtube.com/vi/H_2AOV--N1s/hqdefault.jpg)](https://youtu.be/H_2AOV--N1s "Tanquesitos")
